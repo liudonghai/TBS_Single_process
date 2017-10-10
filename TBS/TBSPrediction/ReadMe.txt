@@ -12,7 +12,7 @@ TBSPrediction.vcxproj
 TBSPrediction.vcxproj.filters
     这是使用“应用程序向导”生成的 VC++ 项目筛选器文件。它包含有关项目文件与筛选器之间的关联信息。在 IDE 中，通过这种关联，在特定节点下以分组形式显示具有相似扩展名的文件。例如，“.cpp”文件与“源文件”筛选器关联。
 
-TBSPrediction.h
+TBSDlg.h
     这是应用程序的主头文件。
     其中包括其他项目特定的标头（包括 Resource.h），并声明 CTBSPredictionApp 应用程序类。
 
@@ -33,7 +33,7 @@ res\TBSPrediction.rc2
 
 应用程序向导创建一个对话框类：
 
-TBSPredictionDlg.h、TBSPredictionDlg.cpp - 对话框
+TBSApp.h、TBSPredictionDlg.cpp - 对话框
     这些文件包含 CTBSPredictionDlg 类。此类定义应用程序的主对话框的行为。对话框模板包含在 TBSPrediction.rc 中，该文件可以在 Microsoft Visual C++ 中编辑。
 
 /////////////////////////////////////////////////////////////////////////////

@@ -2,13 +2,13 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSMainDlg.h"
 #include "afxdialogex.h"
 #include <fstream>
 #include "TBSCommon.h"
 #include "TBSRedRat.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSScriptParse.h"
 #include <regex>
 
@@ -23,7 +23,7 @@ CTBSMainDlg::CTBSMainDlg(CWnd* pParent)
 {
 	
 	pGetData = NULL;
-	cstrProjectName = CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName;
+	cstrProjectName = CTBSCommon::m_PresentThread->cstrProjectName;
 	Create(IDD_MAIN_DIALOG, GetDlgItem(IDC_TAB_CONTROL));
 }
 
@@ -66,11 +66,11 @@ BOOL CTBSMainDlg::PreTranslateMessage(MSG* pMsg)
 	{
 		INT n;
 		CHAR *pComOut = new CHAR[80];
-		CHAR cNum[10];
+		/*CHAR cNum[10];*/
 		CString cstr;
 		CString cstrTitle;
-		_itoa_s(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].iNum, cNum, 10);
-		cstrTitle = L"MSComm" + CString(cNum);
+		/*_itoa_s(CTBSCommon::m_PresentThread->iNum, cNum, 10);*/
+		cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 		if (pMsg->wParam == VK_ESCAPE)
 			return TRUE;
 		if ((pMsg->wParam == VK_RETURN) && GetFocus() == GetDlgItem(IDC_COM_WRITE))
@@ -112,14 +112,14 @@ BOOL CTBSMainDlg::OnInitDialog()
 	m_TestList.SetExtendedStyle(dwStyle);
 	m_TestList.InsertColumn(0, _T("ScriptName"));
 	m_TestList.InsertColumn(1, _T("TestResult"));
-	CTBSPredictionDlg::m_TabControl->InsertItem(CTBSCommon::iTBSPresent, cstrProjectName);
+	
 	return TRUE;  // return TRUE unless you set the focus to a control
 				  // 异常: OCX 属性页应返回 FALSE
 }
 
 void CTBSMainDlg::OnButtonPort(UINT nId)
 {
-	if(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrIRFile==L"")
+	if(CTBSCommon::m_PresentThread->cstrIRFile==L"")
 	{
 		AfxMessageBox(L"IR数据文件为空，请导入IR数据文件！");
 		return;
@@ -148,11 +148,11 @@ void CTBSMainDlg::OnButtonPort(UINT nId)
 				CTBSCommon::tbs_com_string_split(sKeyLine, ' ', key);
 				if (i == atoi(key[1].c_str()))
 				{
-					CHAR *pIRFile = CW2A(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrIRFile.GetString());
+					CHAR *pIRFile = CW2A(CTBSCommon::m_PresentThread->cstrIRFile.GetString());
 					CMutex m_Mutex;
 					m_Mutex.Lock();
 					
-					//CTBSRedRat::tbs_ir_send_key(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrRedRat, pIRFile, key[0]);
+					//CTBSRedRat::tbs_ir_send_key(CTBSCommon::m_PresentThread->cstrRedRat, pIRFile, key[0]);
 					m_Mutex.Unlock();
 					break;
 				}
@@ -179,11 +179,12 @@ void CTBSMainDlg::OnPaint()
 	Invalidate();
 	//无IR控件的布局
 	CRect m_Rc;
-	CRect m_TabRect;
-	CTBSPredictionDlg::m_TabControl->GetClientRect(&m_Rc);
+	//CRect m_TabRect;
+	//CTBSPredictionDlg::m_TabControl->GetClientRect(&m_Rc);
+	CTBSCommon::m_PresentThread->m_TBSDialog->GetClientRect(&m_Rc);
 	//m_Rc.top += CTBSPredictionDlg::m_TabControl->uiHeight;
-	CTBSPredictionDlg::m_TabControl->GetItemRect(0, &m_TabRect);
-	m_Rc.top += m_TabRect.Height();
+	//CTBSPredictionDlg::m_TabControl->GetItemRect(0, &m_TabRect);
+	//m_Rc.top += m_TabRect.Height();
 	//m_Rc.top += 19;
 	this->MoveWindow(&m_Rc);
 
@@ -242,12 +243,12 @@ void CTBSMainDlg::OnNMClickTestList(NMHDR *pNMHDR, LRESULT *pResult)
 		CString cstrItemScript;
 		cstrItemResult = m_TestList.GetItemText(lpNMItemActivate->iItem, 1);
 		cstrItemScript = m_TestList.GetItemText(lpNMItemActivate->iItem, 0);
-		if ((cstrItemResult.IsEmpty() && cstrItemScript.IsEmpty())||CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_TestThread==NULL)
+		if ((cstrItemResult.IsEmpty() && cstrItemScript.IsEmpty())||CTBSCommon::m_PresentThread->m_TestThread==NULL)
 			return;
 		CTBSDetailDlg *m_DetailDlg = CTBSDetailDlg::GetInstance();
 		if (m_DetailDlg != NULL)
 		{
-			m_DetailDlg->cstrProjectName = CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName;
+			m_DetailDlg->cstrProjectName = CTBSCommon::m_PresentThread->cstrProjectName;
 			m_DetailDlg->cstrScriptName = cstrItemScript;
 			m_DetailDlg->cstrResult = cstrItemResult;
 			m_DetailDlg->Create(IDD_DETAIL_PARSE_DIALIG);

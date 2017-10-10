@@ -2,7 +2,7 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSMSCOMThread.h"
 #include "MSCommDlg.h"
 

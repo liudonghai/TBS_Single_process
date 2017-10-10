@@ -2,13 +2,13 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSProjectCreatDlg.h"
 #include "afxdialogex.h"
 #include "TBSMainThread.h"
 #include "TBSCommon.h"
 #include <fstream>
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 using namespace std;
 // CTBSProjectCreatDlg ¶Ô»°¿ò
 

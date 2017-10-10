@@ -2,10 +2,10 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSScriptDeleteDlg.h"
 #include "afxdialogex.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSDataBase.h"
 #include <string>
 using namespace std;
@@ -16,7 +16,7 @@ IMPLEMENT_DYNAMIC(CTBSScriptDeleteDlg, CDialogEx)
 CTBSScriptDeleteDlg::CTBSScriptDeleteDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_DELETE_SCRIPT, pParent)
 {
-	strProjectName = TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+	strProjectName = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 }
 
 CTBSScriptDeleteDlg::~CTBSScriptDeleteDlg()

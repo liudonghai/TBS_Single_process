@@ -215,13 +215,12 @@
     <ClInclude Include="TBSComConnectDlg.h" />
     <ClInclude Include="TBSMainDlg.h" />
     <ClInclude Include="TBSMainThread.h" />
-    <ClInclude Include="TBSPrediction.h" />
-    <ClInclude Include="TBSPredictionDlg.h" />
+    <ClInclude Include="TBSApp.h" />
+    <ClInclude Include="TBSDlg.h" />
     <ClInclude Include="TBSScriptParse.h" />
     <ClInclude Include="TBSScriptParseError.h" />
-    <ClInclude Include="TBSSelectIR.h" />
+    <ClInclude Include="TBSSelectIRDlg.h" />
     <ClInclude Include="TBSSelectTestScript.h" />
-    <ClInclude Include="TBSTabCtrl.h" />
     <ClInclude Include="TBSTestDataInDlg.h" />
   </ItemGroup>
   <ItemGroup>
@@ -246,12 +245,11 @@
     <ClCompile Include="TBSComConnectDlg.cpp" />
     <ClCompile Include="TBSMainDlg.cpp" />
     <ClCompile Include="TBSMainThread.cpp" />
-    <ClCompile Include="TBSPrediction.cpp" />
-    <ClCompile Include="TBSPredictionDlg.cpp" />
+    <ClCompile Include="TBSApp.cpp" />
+    <ClCompile Include="TBSDlg.cpp" />
     <ClCompile Include="TBSScriptParse.cpp" />
-    <ClCompile Include="TBSSelectIR.cpp" />
+    <ClCompile Include="TBSSelectIRDlg.cpp" />
     <ClCompile Include="TBSSelectTestScript.cpp" />
-    <ClCompile Include="TBSTabCtrl.cpp" />
     <ClCompile Include="TBSTestDataInDlg.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -260,6 +258,7 @@
   <ItemGroup>
     <None Include="..\dependency\sqlite3.dll" />
     <None Include="ClassDiagram.cd" />
+    <None Include="ClassDiagram1.cd" />
     <None Include="res\TBSPrediction.rc2" />
   </ItemGroup>
   <ItemGroup>

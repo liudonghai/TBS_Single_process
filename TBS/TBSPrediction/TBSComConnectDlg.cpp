@@ -2,10 +2,10 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSComConnectDlg.h"
 #include "afxdialogex.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSMSCOMThread.h"
 // CTBSComConnectDlg 对话框
 
@@ -38,13 +38,12 @@ void CTBSComConnectDlg::OnBnClickedOk()
 {
 	//创建一个优先级较高的线程，读取串口数据
 	CRuntimeClass* prt = RUNTIME_CLASS(CTBSMSCOMThread);
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread= AfxBeginThread(prt, THREAD_PRIORITY_TIME_CRITICAL, 0, 0,NULL);
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread == NULL)
+	CTBSCommon::m_PresentThread->m_ComThread= AfxBeginThread(prt, THREAD_PRIORITY_TIME_CRITICAL, 0, 0,NULL);
+	if (CTBSCommon::m_PresentThread->m_ComThread == NULL)
 	{
 		AfxMessageBox(L"串口打开失败！");
 		return;
 	}
-	CHAR	cNum[10];
 	HANDLE	hCom;
 	CString cstrTitle;
 	CString csPortocol;
@@ -83,17 +82,17 @@ void CTBSComConnectDlg::OnBnClickedOk()
 	{
 		CloseHandle(hCom);
 		AfxMessageBox(L"串口被占用或者不存在！！");
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread->PostThreadMessage(WM_QUIT, NULL, NULL);
+		CTBSCommon::m_PresentThread->m_ComThread->PostThreadMessage(WM_QUIT, NULL, NULL);
 		return ;
 	}
 	CloseHandle(hCom);
-	_itoa_s(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].iNum, cNum, 10);
-	cstrTitle = L"MSComm" + CString(cNum);
+
+	cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 	::SendMessage(::FindWindow(NULL, cstrTitle), WM_PARAMER_SEND, (WPARAM)&csPortocol, (LPARAM)&csParater);
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg->m_Event.SetEvent();
+	CTBSCommon::m_PresentThread->m_pMainDlg->m_Event.SetEvent();
 	
 	INT arrMenuIDEnable[] = { IDM_DISCONNECT_STB };
-	CTBSPredictionDlg::tbs_menu_enable(arrMenuIDEnable, 1);
+	CTBSDlg::tbs_menu_enable(arrMenuIDEnable, 1);
 }
 
 

@@ -41,8 +41,4 @@ public:
 	static UINT	tbs_test_manager(LPVOID lpParam);
 
 private:
-
-	INT			iIndex;
-	CTBSMainDlg *m_MainDlg;
-	CString		cstrProjectName;
 };

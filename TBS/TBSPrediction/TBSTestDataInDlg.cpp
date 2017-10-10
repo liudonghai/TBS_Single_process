@@ -2,11 +2,11 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSTestDataInDlg.h"
 #include "afxdialogex.h"
 #include "TBSDataBase.h"
-#include "TBSPredictionDlg.h"	
+#include "TBSApp.h"	
 #include <string>
 using namespace std;
 // CTBSTestDataInDlg 对话框
@@ -23,7 +23,7 @@ CTBSTestDataInDlg::CTBSTestDataInDlg(CWnd* pParent /*=NULL*/)
 	, cstrTester(_T(""))
 {
 	//TODO：读取配置文件内的相关数据
-	cstrProject = CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName;
+	cstrProject = CTBSCommon::m_PresentThread->cstrProjectName;
 	tbs_read_pro_ini();
 }
 

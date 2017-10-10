@@ -52,7 +52,7 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);
 	void tbs_log_write(WCHAR *pData);
 	void tbs_log_file_create();
-	
+	void tbs_get_log_info();
 	DECLARE_MESSAGE_MAP()
 
 private:

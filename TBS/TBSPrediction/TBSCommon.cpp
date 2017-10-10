@@ -2,9 +2,9 @@
 #include "TBSCommon.h"
 #include <assert.h>
 
-INT CTBSCommon::iTBSNum = 0;
-INT CTBSCommon::iTBSPresent = 0;
-TBS_PRESENT_THREAD_t *CTBSCommon::m_PresentThread=new TBS_PRESENT_THREAD_t[9];
+//INT CTBSCommon::iTBSNum = 0;
+//INT CTBSCommon::iTBSPresent = 0;
+TBS_PRESENT_THREAD_t *CTBSCommon::m_PresentThread=new TBS_PRESENT_THREAD_t;
 
 CTBSCommon::CTBSCommon()
 {

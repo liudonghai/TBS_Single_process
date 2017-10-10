@@ -1,5 +1,5 @@
 
-// TBSPredictionDlg.h : 头文件
+// TBSApp.h : 头文件
 //
 
 #pragma once
@@ -9,14 +9,13 @@
 #include "TBSProjectCreatDlg.h"
 #include "TBSMainDlg.h"
 #include "afxcmn.h"
-#include "TBSTabCtrl.h"
 // CTBSPredictionDlg 对话框
-class CTBSPredictionDlg : public CDialogEx
+class CTBSDlg : public CDialogEx
 {
 // 构造
 public:
-	CTBSPredictionDlg(CWnd* pParent = NULL);	// 标准构造函数
-
+	CTBSDlg(CWnd* pParent = NULL);	// 标准构造函数
+	virtual ~CTBSDlg();				//析构
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_TBSPREDICTION_DIALOG };
@@ -55,7 +54,8 @@ public:
 	void tbs_test_report_case_information_create(CString cstrTestReportName);
 
 	virtual void OnOK();
-	
+	virtual void OnCancel();
+
 	afx_msg void OnConnectStb();
 	afx_msg void OnDisconnectStb();
 	afx_msg void OnNewProject();
@@ -71,20 +71,17 @@ public:
 	afx_msg void OnPaint();
 	afx_msg void OnTestDataIn();
 	afx_msg void OnTestReportCreate();
-	afx_msg void OnTcnSelchangeTabControl(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnConnectIr();
 	afx_msg void OnDisconIr();
 	afx_msg void OnLogSave();
+	afx_msg void OnTestFinish();
+	afx_msg void OnIrValueIn();
+	afx_msg void On32826();
 
 private:
 	void tbs_init_menu();	// 初始化菜单
 
 public:
 	static CMutex		*m_Mutex;
-	static CTBSTabCtrl	*m_TabControl;
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
-	afx_msg void OnTestFinish();
-	afx_msg void OnIrValueIn();
-	virtual void OnCancel();
 };
-

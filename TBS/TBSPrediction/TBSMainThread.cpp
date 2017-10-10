@@ -2,11 +2,11 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSMainThread.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSDataBase.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSMainDlg.h"
 #include "TBSScriptParse.h"
 #include "CMSComm.h"
@@ -27,20 +27,21 @@ CTBSMainThread::~CTBSMainThread()
 BOOL CTBSMainThread::InitInstance()
 {
 	m_MainDlg = new CTBSMainDlg();
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg = m_MainDlg;
-	CTBSPredictionDlg::m_TabControl->SetCurSel(CTBSCommon::iTBSPresent);
-	for (INT i = 0; i <= CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].iTabNum ; i++)
-	{
-		if (i == CTBSCommon::iTBSPresent)
-		{
-			CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(SW_SHOW);
-		}
-		else
-		{
-			CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(SW_HIDE);
-		}
-	}
-	m_MainDlg->UpdateWindow();	//更新指定窗口的客户区;
+	CTBSCommon::m_PresentThread->m_pMainDlg = m_MainDlg;
+	m_MainDlg->ShowWindow(SW_SHOW);
+	
+	//for (INT i = 0; i <= CTBSCommon::m_PresentThread->iTabNum ; i++)
+	//{
+	//	if (i == CTBSCommon::iTBSPresent)
+	//	{
+	//		CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(SW_SHOW);
+	//	}
+	//	else
+	//	{
+	//		CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(SW_HIDE);
+	//	}
+	//}
+	//m_MainDlg->UpdateWindow();	//更新指定窗口的客户区;
 
 	CTBSDataBase m_DataBase(DATAPATH);
 

@@ -1,5 +1,5 @@
 
-// TBSPrediction.h : PROJECT_NAME 应用程序的主头文件
+// TBSDlg.h : PROJECT_NAME 应用程序的主头文件
 //
 
 #pragma once
@@ -9,17 +9,16 @@
 #endif
 
 #include "resource.h"		// 主符号
-
+#include "TBSApp.h"
 
 // CTBSPredictionApp: 
 // 有关此类的实现，请参阅 TBSPrediction.cpp
 //
 
-class CTBSPredictionApp : public CWinApp
+class CTBSApp : public CWinApp
 {
 public:
-	CTBSPredictionApp();
-
+	CTBSApp();
 // 重写
 public:
 	virtual BOOL InitInstance();
@@ -29,4 +28,4 @@ public:
 	DECLARE_MESSAGE_MAP()
 };
 
-extern CTBSPredictionApp theApp;
+extern CTBSApp theApp;

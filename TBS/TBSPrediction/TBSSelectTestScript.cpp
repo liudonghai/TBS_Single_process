@@ -2,10 +2,10 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSSelectTestScript.h"
 #include "afxdialogex.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSDataBase.h"
 #include "TBSScriptParse.h"
 #include "TBSGlobal.h"
@@ -18,9 +18,9 @@ CTBSScriptSelectDlg::CTBSScriptSelectDlg(CWnd* pParent)
 	: CDialogEx(IDD_SELECT_DIALOG, pParent)
 	, m_iRadio(0)
 {
-	iIndex			= CTBSCommon::iTBSPresent;
-	m_MainDlg		= CTBSCommon::m_PresentThread[iIndex].m_pMainDlg;
-	cstrProjectName = CTBSCommon::m_PresentThread[iIndex].cstrProjectName;
+
+	/*m_MainDlg		= CTBSCommon::m_PresentThread->m_pMainDlg;
+	cstrProjectName = CTBSCommon::m_PresentThread->cstrProjectName;*/
 
 }
 
@@ -52,7 +52,7 @@ BOOL CTBSScriptSelectDlg::OnInitDialog()
 	CHAR			**ppGetData = NULL;
 	CRect			m_Rc;
 	DWORD			dwStyle = m_ScriptShow.GetExtendedStyle();
-	string			strProjectName = TOSTRING(cstrProjectName);
+	string			strProjectName = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 	string			strsql = "select * from TestCase where ProjectName='" + strProjectName + "'";
 	CString			cstrScriptName;
 	CTBSDataBase	m_DataBase(DATAPATH);
@@ -110,7 +110,7 @@ void CTBSScriptSelectDlg::OnBnClickedRadio1()
 	{
 		INT				iRow = 0, iColum = 0;
 		CHAR			**ppGetData = NULL;
-		string			strProjectName = TOSTRING(cstrProjectName);
+		string			strProjectName = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 		string			strsql = "select * from TestCase where ProjectName='" + strProjectName + "'";
 		CString			cstrScriptName;
 		CTBSDataBase	m_DataBase(DATAPATH);
@@ -136,7 +136,7 @@ void CTBSScriptSelectDlg::OnBnClickedRadio2()
 	{
 		INT				iRow = 0, iColum = 0;
 		CHAR			**ppGetData = NULL;
-		string			strProjectName=TOSTRING(cstrProjectName);
+		string			strProjectName=TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 		string			strsql = "select * from TestCase where ProjectName='" + strProjectName + "' and CaseTypeFlag='auto'";
 		CString			cstrScriptName;
 		CTBSDataBase	m_DataBase(DATAPATH);
@@ -162,7 +162,7 @@ void CTBSScriptSelectDlg::OnBnClickedRadio3()
 	{
 		INT				iRow = 0, iColum = 0;
 		CHAR			**ppGetData = NULL;
-		string			strProjectName(TOSTRING(cstrProjectName));
+		string			strProjectName(TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName));
 		string			strsql = "select * from TestCase where ProjectName='" + strProjectName + "' and CaseTypeFlag='semi'";
 		CString			cstrScriptName;
 		CTBSDataBase	m_DataBase(DATAPATH);
@@ -189,40 +189,40 @@ void CTBSScriptSelectDlg::OnBnClickedBeginTest()
 	CTime			m_Time;
 	string			strTime;
 	string			strSqlUpdate;
-	string			strProject	= TOSTRING(cstrProjectName);
+	string			strProject	= TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 	CString			*pItemValue = new CString[MAX_PATH];
 	CString			*pHeadItem	= pItemValue;
 	CString			cstrTime;
 	CTBSDataBase	m_DataBase(DATAPATH);
 	tbs_thread_script_t *m_ThreadScript = NULL;
 
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_TestThread != NULL)
+	if (CTBSCommon::m_PresentThread->m_TestThread != NULL)
 	{
 		AfxMessageBox(L"请等待当前测试项执行完成，或者强制结束当前的测试项。");
 		return;
 	}
 
 
-	if (CTBSCommon::m_PresentThread[iIndex].cstrIRFile.IsEmpty())
+	if (CTBSCommon::m_PresentThread->cstrIRFile.IsEmpty())
 	{
 		AfxMessageBox(L"IR数据文件为空，请导入IR数据文件！");
 		return;
 	}
 
-	if (CTBSCommon::m_PresentThread[iIndex].cstrRedRat == L"")
+	if (CTBSCommon::m_PresentThread->cstrRedRat == L"")
 	{
 		AfxMessageBox(L"IR设备未指定，请指定IR设备！");
 		return;
 	}
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, strProject+"开始测试");
-	m_MainDlg->m_TestList.DeleteAllItems();
+	CTBSCommon::m_PresentThread->m_pMainDlg->m_TestList.DeleteAllItems();
 	for (i = 0; i < m_ScriptShow.GetItemCount(); i++)
 	{
 		if (m_ScriptShow.GetCheck(i))
 		{
 			*pItemValue=m_ScriptShow.GetItemText(i, 0);
-			m_MainDlg->m_TestList.InsertItem(iItemNum, *pItemValue);
-			m_MainDlg->m_TestList.SetItemText(iItemNum,1, SCRIPT_WAIT);
+			CTBSCommon::m_PresentThread->m_pMainDlg->m_TestList.InsertItem(iItemNum, *pItemValue);
+			CTBSCommon::m_PresentThread->m_pMainDlg->m_TestList.SetItemText(iItemNum,1, SCRIPT_WAIT);
 			pItemValue++;
 			iItemNum++;
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"选择测试脚本："+ *pItemValue);
@@ -246,24 +246,24 @@ void CTBSScriptSelectDlg::OnBnClickedBeginTest()
 	m_ThreadScript->iScriptNum = iItemNum;
 	m_ThreadScript->m_Script = NULL;
 	
-	CTBSCommon::m_PresentThread[iIndex].m_TestThread = AfxBeginThread(CTBSScriptParse::tbs_test_script_execute, m_ThreadScript, THREAD_PRIORITY_NORMAL, 0, CREATE_SUSPENDED);
-	if (CTBSCommon::m_PresentThread[iIndex].m_TestThread == NULL)
+	CTBSCommon::m_PresentThread->m_TestThread = AfxBeginThread(CTBSScriptParse::tbs_test_script_execute, m_ThreadScript, THREAD_PRIORITY_NORMAL, 0, CREATE_SUSPENDED);
+	if (CTBSCommon::m_PresentThread->m_TestThread == NULL)
 	{
 		AfxMessageBox(L"创建后台脚本执行线程失败！");
 	}
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "脚本执行线程创建成功");
 	
-	m_ThreadScript->pThreadExc = CTBSCommon::m_PresentThread[iIndex].m_TestThread;
+	m_ThreadScript->pThreadExc = CTBSCommon::m_PresentThread->m_TestThread;
 
-	CTBSCommon::m_PresentThread[iIndex].m_ParseThread = AfxBeginThread(CTBSScriptParse::tbs_test_script_parse, m_ThreadScript);
-	if (CTBSCommon::m_PresentThread[iIndex].m_ParseThread == NULL)
+	CTBSCommon::m_PresentThread->m_ParseThread = AfxBeginThread(CTBSScriptParse::tbs_test_script_parse, m_ThreadScript);
+	if (CTBSCommon::m_PresentThread->m_ParseThread == NULL)
 	{
 		AfxMessageBox(L"创建后台脚本解析线程失败！");
 	}
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "脚本解析线程创建成功");
 	
 	INT arrMenuIDEnable[] = { IDM_TEST_FINISH };
-	CTBSPredictionDlg::tbs_menu_enable(arrMenuIDEnable, 1);
+	CTBSDlg::tbs_menu_enable(arrMenuIDEnable, 1);
 	CDialogEx::OnOK();
 }
 

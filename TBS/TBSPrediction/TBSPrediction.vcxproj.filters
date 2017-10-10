@@ -18,12 +18,6 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TBSPrediction.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="TBSPredictionDlg.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -96,20 +90,17 @@
     <ClInclude Include="TBSDetailDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="TBSSelectIR.h">
+    <ClInclude Include="TBSSelectIRDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="TBSTabCtrl.h">
+    <ClInclude Include="TBSApp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="TBSDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="TBSPrediction.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="TBSPredictionDlg.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -167,10 +158,13 @@
     <ClCompile Include="TBSDetailDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="TBSSelectIR.cpp">
+    <ClCompile Include="TBSSelectIRDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="TBSTabCtrl.cpp">
+    <ClCompile Include="TBSApp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="TBSDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -185,6 +179,7 @@
     </None>
     <None Include="ClassDiagram.cd" />
     <None Include="..\dependency\sqlite3.dll" />
+    <None Include="ClassDiagram1.cd" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\TBSPrediction.ico">

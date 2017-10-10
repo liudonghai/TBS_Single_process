@@ -4,13 +4,13 @@
 
 // CTBSSelectIR 对话框
 
-class CTBSSelectIR : public CDialogEx
+class CTBSSelectIRDlg : public CDialogEx
 {
-	DECLARE_DYNAMIC(CTBSSelectIR)
+	DECLARE_DYNAMIC(CTBSSelectIRDlg)
 
 public:
-	CTBSSelectIR(CWnd* pParent = NULL);   // 标准构造函数
-	virtual ~CTBSSelectIR();
+	CTBSSelectIRDlg(CWnd* pParent = NULL);   // 标准构造函数
+	virtual ~CTBSSelectIRDlg();
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME

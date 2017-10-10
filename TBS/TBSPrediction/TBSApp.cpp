@@ -3,25 +3,24 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
-#include "TBSPredictionDlg.h"
+#include "TBSDlg.h"
+#include "TBSApp.h"
 #include "CMSComm.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-
 // CTBSPredictionApp
 
-BEGIN_MESSAGE_MAP(CTBSPredictionApp, CWinApp)
+BEGIN_MESSAGE_MAP(CTBSApp, CWinApp)
 	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
 END_MESSAGE_MAP()
 
 
 // CTBSPredictionApp 构造
 
-CTBSPredictionApp::CTBSPredictionApp()
+CTBSApp::CTBSApp()
 {
 	// 支持重新启动管理器
 	m_dwRestartManagerSupportFlags = AFX_RESTART_MANAGER_SUPPORT_RESTART;
@@ -33,12 +32,12 @@ CTBSPredictionApp::CTBSPredictionApp()
 
 // 唯一的一个 CTBSPredictionApp 对象
 
-CTBSPredictionApp theApp;
+CTBSApp theApp;
 
 
 // CTBSPredictionApp 初始化
 
-BOOL CTBSPredictionApp::InitInstance()
+BOOL CTBSApp::InitInstance()
 {
 
 	/*HANDLE hMutex;
@@ -56,6 +55,7 @@ BOOL CTBSPredictionApp::InitInstance()
 			}
 		}
 	}*/
+
 	// 如果一个运行在 Windows XP 上的应用程序清单指定要
 	// 使用 ComCtl32.dll 版本 6 或更高版本来启用可视化方式，
 	//则需要 InitCommonControlsEx()。  否则，将无法创建窗口。
@@ -87,7 +87,8 @@ BOOL CTBSPredictionApp::InitInstance()
 	// 例如修改为公司或组织名
 	SetRegistryKey(_T("inspur"));
 
-	CTBSPredictionDlg dlg;
+	CTBSDlg dlg;
+	CTBSCommon::m_PresentThread->m_TBSDialog = &dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)

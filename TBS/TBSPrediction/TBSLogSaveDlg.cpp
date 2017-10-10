@@ -2,11 +2,11 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSLogSaveDlg.h"
 #include "afxdialogex.h"
 #include "TBSCommon.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 // CTBSLogSave 对话框
 
 IMPLEMENT_DYNAMIC(CTBSLogSaveDlg, CDialogEx)
@@ -43,7 +43,7 @@ END_MESSAGE_MAP()
 UINT tbs_logfile_message_send(LPVOID lpParameter)
 {
 	//从数组到void指针，再到LPARAM，再到数组，中间一定要转回来，即是在转到void以后，先转为数组在转为LPARAM发送。
-	CHAR cNum[10];
+	/*CHAR cNum[10];*/
 	CString cstrTitle;
 	CString *cstrParamter = (CString*)lpParameter;
 	CString cstrLogParameter[3];
@@ -52,9 +52,9 @@ UINT tbs_logfile_message_send(LPVOID lpParameter)
 	cstrLogParameter[1] = cstrParamter[1];
 	cstrLogParameter[2] = cstrParamter[2];
 
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg->m_Event.Lock();
-	_itoa_s(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].iNum, cNum, 10);
-	cstrTitle = L"MSComm" + CString(cNum);
+	CTBSCommon::m_PresentThread->m_pMainDlg->m_Event.Lock();
+	/*_itoa_s(CTBSCommon::m_PresentThread->iNum, cNum, 10);*/
+	cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 	::SendMessage(::FindWindow(NULL, cstrTitle), WM_LOG_FILENAME, 0, (LPARAM)cstrLogParameter);
 	return 0;
 }
@@ -67,36 +67,40 @@ void CTBSLogSaveDlg::OnBnClickedOk()
 		AfxMessageBox(L"请输入LOG文件名和路径");
 		return;
 	}
+	CMutex m_ConfigMutex(FALSE, TBS_CONFIG_MUREX);
+	CSingleLock m_SingleLock(&m_ConfigMutex);
+	m_SingleLock.Lock();
 	if (m_Check.GetCheck())
 	{
 
-		WritePrivateProfileString(L"LOGFilePath", L"Path", this->cstrFilePath, CONFIGFILE);
-		WritePrivateProfileString(L"LOGFileName", L"Name", this->cstrFileName, CONFIGFILE);
-		WritePrivateProfileString(L"LOGFileLine", L"Line", this->cstrEachLine, CONFIGFILE);
+		WritePrivateProfileString(L"LOGFile", L"Path", this->cstrFilePath, CONFIGFILE);
+		WritePrivateProfileString(L"LOGFile", L"Name", this->cstrFileName, CONFIGFILE);
+		WritePrivateProfileString(L"LOGFile", L"Line", this->cstrEachLine, CONFIGFILE);
 	}
 	else
 	{
-		WritePrivateProfileString(L"LOGFilePath", L"Path", L"", CONFIGFILE);
-		WritePrivateProfileString(L"LOGFileName", L"Name", L"", CONFIGFILE);
-		WritePrivateProfileString(L"LOGFileLine", L"Line", L"", CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Project", CTBSCommon::m_PresentThread->cstrProjectName, CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Path", this->cstrFilePath, CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Name", this->cstrFileName, CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Line", this->cstrEachLine, CONFIGFILE);
 	}
-
-	CString cstrLogParameter[3];
+	m_SingleLock.Unlock();
+	/*CString cstrLogParameter[3];
 	cstrLogParameter[0] = this->cstrFilePath;
 	cstrLogParameter[1] = this->cstrFileName;
-	cstrLogParameter[2] = this->cstrEachLine;
+	cstrLogParameter[2] = this->cstrEachLine;*/
 
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread == NULL)
+	if (CTBSCommon::m_PresentThread->m_ComThread == NULL)
 	{
-		CWinThread *m_thread = AfxBeginThread(tbs_logfile_message_send, cstrLogParameter);
+		/*CWinThread *m_thread = AfxBeginThread(tbs_logfile_message_send, NULL);*/
 	}
 	else
 	{
-		CHAR cNum[10];
+		
 		CString cstrTitle;
-		_itoa_s(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].iNum, cNum, 10);
-		cstrTitle = L"MSComm" + CString(cNum);
-		::SendMessage(::FindWindow(NULL, cstrTitle), WM_LOG_FILENAME, 0, (LPARAM)cstrLogParameter);
+	
+		cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
+		::SendMessage(::FindWindow(NULL, cstrTitle), WM_LOG_FILENAME, 0, 0);
 	}
 
 	CDialogEx::OnOK();
@@ -118,9 +122,13 @@ BOOL CTBSLogSaveDlg::OnInitDialog()
 	WCHAR pFileName[MAX_PATH] = { 0 };
 	WCHAR pFilePath[MAX_PATH] = { 0 };
 	WCHAR pEachLine[MAX_PATH] = { 0 };
-	GetPrivateProfileString(L"LOGFileName", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
-	GetPrivateProfileString(L"LOGFilePath", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
-	GetPrivateProfileString(L"LOGFileLine", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	CMutex m_ConfigMutex(FALSE, TBS_CONFIG_MUREX);
+	CSingleLock m_SingleLock(&m_ConfigMutex);
+	m_SingleLock.Lock();
+	GetPrivateProfileString(L"LOGFile", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
+	GetPrivateProfileString(L"LOGFile", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
+	GetPrivateProfileString(L"LOGFile", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	m_SingleLock.Unlock();
 	this->cstrFilePath = pFilePath;
 	this->cstrFileName = pFileName;
 	this->cstrEachLine = pEachLine;

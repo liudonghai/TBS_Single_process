@@ -53,12 +53,12 @@
 #endif
 #endif
 
-#include "TBSPrediction.h"
+#include "TBSApp.h"
 #include "TBSLog.h"
 #include "TBSGlobal.h"
 #include "TBSDetailDlg.h"
 #include "TBSDataBase.h"
-#include "TBSPredictionDlg.h"
+#include "TBSDlg.h"
 #include "TBSCommon.h"
 #include <string>
 #include <fstream>
@@ -81,9 +81,13 @@ using namespace std;
 #define SCRIPT_TEST_FAIL_STR	"Fail"
 #define SCRIPT_TEST_SUCCESS		L"Success"
 #define SCRIPT_TEST_SUCCESS_STR "Success"
+#define SCRIPT_TEST_FINISH		L"Ö´ÐÐÍê³É"
 
 #define LOG_FILE_PATH			L"..\\logfile\\TBSLog.log"
-
+//the Mutex for DataBase.
+#define TBS_DATABASE_METUX		L"TBS_DATABASE_METUX_NAME"
+#define TBS_CONFIG_MUREX		L"TBS_CONFIG_METUX_NAME"
+#define TBS_LOG_RECORDE_MUTEX	L"TBS_LOG_RECOEDE_MUTEX_NAME"
 
 #define WM_KEYBOARD_MSG WM_USER+1 
 #define WM_PARAMER_SEND WM_USER+2

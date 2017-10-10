@@ -2,9 +2,9 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSScriptParse.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSDataBase.h"
 #include "TBSRedRat.h"
 #include "TBSScriptParseError.h"
@@ -13,7 +13,7 @@
 #include <string>
 using namespace std;
 
-#define IFNULL(x) if((x) == NULL) { return 0; }
+#define CHECKEND(x) if((x) == NULL) { return 0; }
 
 CTBSScriptParse::CTBSScriptParse()
 {
@@ -61,7 +61,7 @@ CTBSScriptParse::~CTBSScriptParse()
 UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 {
 	//we should use the member of TBS_PRESENT_THREAD_t to synchronize the  thread;
-	TBS_PRESENT_THREAD_t *m_PresentThread = &CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent];
+	TBS_PRESENT_THREAD_t *m_PresentThread = CTBSCommon::m_PresentThread;
 	tbs_thread_script_t *m_Parameter = (tbs_thread_script_t*)lpParam;
 
 	
@@ -76,7 +76,7 @@ UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 	CTBSDataBase	m_DataBase(DATAPATH);
 	CTBSMainDlg		*m_MainDlg		= m_PresentThread->m_pMainDlg;
 	CTBSScriptParse	*m_Script		= NULL;
-	CSingleLock		m_SingkeLock(CTBSPredictionDlg::m_Mutex);
+	CSingleLock		m_SingkeLock(CTBSDlg::m_Mutex);
 	strProjectName = TOSTRING(m_PresentThread->cstrProjectName);
 
 	while (!(*pScriptName).IsEmpty() && m_Script == NULL)
@@ -105,7 +105,6 @@ UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 		{
 			strScrptPath = *(ppScriptData + iColum + 4);
 		}
-		//m_Script = new CTBSScriptParse(strScrptPath);
 		cstrPageCode = CTBSCommon::tbs_file_code_check(strScrptPath);
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, cstrPageCode);
 		fstream fsScript(strScrptPath, ios::in);
@@ -116,9 +115,11 @@ UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 		if (fsScript.is_open() && (cstrPageCode == L"ANSI" || cstrPageCode == L"UTF-8"))
 		{
 			do
-			{/*
-				if(!m_ParseAndRun.IsLocked())
-					m_ParseAndRun.Lock();*/
+			{
+				/*if (!m_ParseAndRun.IsLocked())
+				{
+					m_ParseAndRun.Lock();
+				}*/
 				m_Script = new CTBSScriptParse();
 				m_Script->fsReadScript = &fsScript;
 				m_Script->cstrPageCode = cstrPageCode;
@@ -164,7 +165,6 @@ UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 				else
 				{
 					//错误提示
-					//m_MainDlg->m_TestList.SetItemText(iItemNum, 1, SCRIPT_ERROR);
 					m_Script->pParseError->iError = iResult;
 					m_Script->tbs_test_script_parse_error(strScriptName, strProjectName);
 					if (iResult == SCRIPT_EOF)
@@ -198,7 +198,6 @@ UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 		}
 		else
 		{
-			//m_MainDlg->m_TestList.SetItemText(iItemNum, 1, SCRIPT_ERROR);
 			if (fsScript.is_open()&&(cstrPageCode != L"ANSI" && cstrPageCode != L"UTF-8"))
 			{
 				m_Script->pParseError->iError = 13;
@@ -212,26 +211,9 @@ UINT CTBSScriptParse::tbs_test_script_parse(LPVOID lpParam)
 			delete  m_Script;
 			m_Script = NULL;
 		}
-		//delete  m_Script;
 		m_Script = NULL;
 		pScriptName++;
 		iItemNum++;
-
-		m_SingkeLock.Lock();
-		for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
-		{
-			if (CTBSCommon::m_PresentThread[i].m_ParseThread != NULL && iThreadID == CTBSCommon::m_PresentThread[i].m_ParseThread->m_nThreadID)
-			{
-				CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-				break;
-			}
-			if (i == CTBSCommon::iTBSNum - 1)
-			{
-				CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-				return 0;
-			}
-		}
-		m_SingkeLock.Unlock();
 	}
 	//if (m_ParseAndRun.IsLocked())
 	//{
@@ -251,7 +233,7 @@ INT CTBSScriptParse::tbs_test_parse_line(INT *pCase)
 {
 	INT iResult;
 	INT iLineNum = 0;
-	CHAR *pBuffer_Get = new CHAR[MAX_PATH];
+	CHAR *pBuffer = new CHAR[MAX_PATH];
 	
 	//匹配需要解析的部分
 	regex regParser1("((\\s|\t)*)(<[ACDEFI] )([A-z]+>)(.*)(</[ACDEFI]>)((\\s|\t)*)");
@@ -262,27 +244,24 @@ INT CTBSScriptParse::tbs_test_parse_line(INT *pCase)
 	while (!(this->fsReadScript->eof()))
 	{
 		iLineNum++;
-		memset(pBuffer_Get, 0, MAX_PATH);
-		CHAR *pBuffer = NULL;
-		this->fsReadScript->getline(pBuffer_Get, MAX_PATH);
+		memset(pBuffer, 0, MAX_PATH);
+		CHAR *pBuffer_ANSI = NULL;
+		this->fsReadScript->getline(pBuffer, MAX_PATH);
 		if (cstrPageCode == L"UTF-8")
 		{
-			CTBSCommon::ConvertUTF8ToANSI(pBuffer_Get, &pBuffer);
+			CTBSCommon::ConvertUTF8ToANSI(pBuffer, &pBuffer_ANSI);
+			memset(pBuffer, 0, MAX_PATH);
+			memcpy_s(pBuffer, MAX_PATH, pBuffer_ANSI, strlen(pBuffer_ANSI));
+			delete[] pBuffer_ANSI;
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, pBuffer);
 
 		}
-		else
-		{
-			pBuffer = pBuffer_Get;
-		}
-		//CTBSCommon::ConvertUTF8ToANSI(pBuffer_Get, pBuffer);
 		//解析<>....<>
 		if (regex_match(pBuffer, regParser1))
 		{
 			//去掉代码两端的空格和制表位
 			tbs_test_space_delete(pBuffer);
 			iResult = tbs_test_parse_keytype(pBuffer, iLineNum, pCase);
-			delete[] pBuffer;
 			if (iResult != SCRIPT_EOF)
 			{
 				this->pParseError->iLineNum = iLineNum;
@@ -296,7 +275,7 @@ INT CTBSScriptParse::tbs_test_parse_line(INT *pCase)
 			tbs_test_space_delete(pBuffer);
 			//解析此行
 			iResult = tbs_test_parse_single_tab(pBuffer);
-			delete[] pBuffer;
+			
 			if (iResult != SCRIPT_EOF||iResult==SCRIPT_FINISH)
 			{
 				this->pParseError->iLineNum = iLineNum;
@@ -307,7 +286,7 @@ INT CTBSScriptParse::tbs_test_parse_line(INT *pCase)
 		else if (regex_match(pBuffer, regAnnotation) || regex_match(pBuffer, regSpace))
 		{
 			//
-			delete[] pBuffer;
+			
 		}
 		//错误语句
 		else
@@ -317,12 +296,12 @@ INT CTBSScriptParse::tbs_test_parse_line(INT *pCase)
 			if (pBuffer == NULL)
 			{
 				//该行是空行
-				delete[] pBuffer;
+				
 			}
 			else
 			{
 				//语法错误,该行不能匹配
-				delete[] pBuffer;
+			
 				this->pParseError->iLineNum = iLineNum;
 				return SCRIPT_LINE;
 			}
@@ -701,46 +680,43 @@ TBS_SCRIPT_ACTION_TYPE_t* CTBSScriptParse::tbs_test_get_script_value(INT *pLoopF
 //		0：	成功；
 UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 {
-	TBS_PRESENT_THREAD_t *m_PresentThread = &CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent];
 	tbs_thread_script_t *m_Parameter = (tbs_thread_script_t*)lpParam;
 
 	INT				iScriptNum		= m_Parameter->iScriptNum;
-	INT				iItemNum		= 0;
-	INT				iSuccess		= 0;
-	INT				iFail			= 0;
+	CSingleLock		m_ParseAndRun(&(m_Parameter->m_Mutex));
+
+	string			strProjectName	= TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
+	string			strIRFile		= TOSTRING(CTBSCommon::m_PresentThread->cstrIRFile);
+	CTBSMainDlg		*m_MainDlg		= CTBSCommon::m_PresentThread->m_pMainDlg;
+	CEvent			*m_Event		= &CTBSCommon::m_PresentThread->m_Event;
+	CString			cstrRedRat		= CTBSCommon::m_PresentThread->cstrRedRat;
+	INT				iThreadID		= CTBSCommon::m_PresentThread->m_TestThread->m_nThreadID;
+
+	INT				iItemNum = 0;
+	INT				iSuccess = 0;
+	INT				iFail = 0;
 	CTime			m_Time;
-	string			strProjectName	= TOSTRING(m_PresentThread->cstrProjectName);
-	string			strIRFile		= TOSTRING(m_PresentThread->cstrIRFile);
 	CString			cstrTime;
 	CTimeSpan		m_CostTime;
 	CTBSDataBase	m_DataBase(DATAPATH);
-	CSingleLock		m_ParseAndRun(&(m_Parameter->m_Mutex));
+	
 	CTBSScriptParse	*m_pScriptRun	= NULL;
-	CTBSMainDlg		*m_MainDlg		= m_PresentThread->m_pMainDlg;
-	CEvent			*m_Event		= &m_PresentThread->m_Event;
-	CString			cstrRedRat		= m_PresentThread->cstrRedRat;
-	INT				iNameNum		= m_PresentThread->iNum;
-	INT				iThreadID		= m_PresentThread->m_TestThread->m_nThreadID;
-	INT				iIndex			= CTBSCommon::iTBSPresent;
-	if (m_PresentThread->cstrProjectName == L"")
-		return -1;
-	CTBSLog::tbs_log_info(__FILE__,__LINE__,__FUNCTION__, m_PresentThread->cstrProjectName);
+	CHAR			*pIRFile		= new CHAR[strIRFile.length() + 1];
 	
-
-	CHAR *pIRFile = new CHAR[strIRFile.length() + 1];
 	memmove(pIRFile, strIRFile.c_str(), strIRFile.length()+1);
-	
+	CHECKEND(CTBSCommon::m_PresentThread->m_TestThread)
 	while (iItemNum < iScriptNum)
 	{
 		//开始一个脚本的执行
 		//互斥锁是为了在有脚本解析结果为FAIL的情况下，解析结果中该脚本被跳过，此时执行脚本应该跳过改脚本，
 		//防止m_pScriptRun被重复赋值，导致脚本执行错乱，实质上是保护m_Parameter->m_Script的值
 		//互斥量可保护解析过慢的问题
+
 		/*if (!m_ParseAndRun.IsLocked())
 		{
 			m_ParseAndRun.Lock();
 		}*/
-
+		CHECKEND(CTBSCommon::m_PresentThread->m_TestThread)
 		if (m_Parameter->m_Script != NULL)
 		{
 			m_pScriptRun = m_Parameter->m_Script;
@@ -749,20 +725,20 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		if (m_pScriptRun == NULL)
 		{
 			m_MainDlg->m_TestList.SetItemText(iItemNum, 1, L"执行完成");
+
 			break;
 		}
-		IFNULL(m_MainDlg);
 		INT			iRow;
 		CString		cstrScriptName	= m_MainDlg->m_TestList.GetItemText(iItemNum, 0);
 		string		strScriptName(CW2A(cstrScriptName.GetString()));
 		CString		cstrCaseName(TOCSTRING(m_pScriptRun->strCaseName));
 		tbs_test_detail_msg_t m_TestDeail;
+
 		m_TestDeail.cstrScriptName = cstrScriptName;
 		m_TestDeail.cstrCaseNmae = cstrCaseName;
 
-		string		strSqlCheck		= "select *from TestDetail where ProjectName='" + strProjectName + "' and ScriptName='" + strScriptName + "'and CaseName='"+ m_pScriptRun->strCaseName +"' and ParseResult='Success'";
+		string strSqlCheck = "select *from TestDetail where ProjectName='" + strProjectName + "' and ScriptName='" + strScriptName + "'and CaseName='"+ m_pScriptRun->strCaseName +"' and ParseResult='Success'";
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"开始执行脚本："+ cstrCaseName);
-		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "select *from TestDetail where ProjectName='" + strProjectName + "' and ScriptName='" + strScriptName + "'and CaseName='" + m_pScriptRun->strCaseName + "' and ParseResult='Success'");
 		m_DataBase.tbs_db_data_query(strSqlCheck, NULL, &iRow, NULL);
 		if (iRow == 0)
 		{
@@ -777,10 +753,14 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 			m_MainDlg->m_TestList.SetItemState(iItemNum, 0, LVIF_STATE);
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iRow);
 			iItemNum++;
+			iFail++;
 			continue;
 		}
-	/*	m_ParseAndRun.Unlock();*/
+		/*m_ParseAndRun.Unlock();*/
+		
+		//解除脚本解析线程的阻塞
 		m_Parameter->m_Event.SetEvent();
+		//Sleep(10);//防止因为脚本执行完成过快，脚本解析还未开始（发生概率极低）。
 
 		INT		iLoopFlag1	= 0;
 		INT		iLoopFlag2	= 0;
@@ -796,6 +776,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		
 		CTBSDetailDlg::m_ExpectionNow = &m_Expection;
 		m_pScriptRun->m_ScriptTime = CTime::GetCurrentTime();
+		
 		m_MainDlg->m_TestList.SetItemText(iItemNum, 1, cstrCaseName +L"正在执行中");
 		m_MainDlg->m_TestList.SetItemState(iItemNum, LVIS_DROPHILITED, LVIF_STATE);
 	
@@ -863,49 +844,29 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_Action[0]->strCmd.c_str());
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iExpFlag);
 			
-			CSingleLock m_SingkeLock(CTBSPredictionDlg::m_Mutex);
-			//判断当前执行有没有被强制结束
-			m_SingkeLock.Lock();
-			for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
-			{
-				if(CTBSCommon::m_PresentThread[i].m_TestThread != NULL && iThreadID ==CTBSCommon::m_PresentThread[i].m_TestThread->m_nThreadID)
-				{
-					CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-					break;
-				}
-				if (i == CTBSCommon::iTBSNum - 1)
-				{
-					CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-					return 0;
-				}
-			}
-			m_SingkeLock.Unlock();
-			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iExpFlag);
+			CSingleLock m_SingkeLock(CTBSDlg::m_Mutex);
 			//开始当前节点
 			//当需要进行结果验证的时候
-		
-
+			CHECKEND(CTBSCommon::m_PresentThread->m_TestThread)
 			if (iExpFlag == 1)
 			{
 				CSingleLock m_Lock(m_pScriptRun->m_MutexDetail);
 
 				if (m_Action[0]->sOperationType_e != TBS_SCRIPT_OPREATION_TYPE_e(6))
 				{
+					//同步Detail信息的变量
 					m_Lock.Lock();
 					CTBSDetailDlg::m_ActionNow = m_Action[0];
 					CTBSDetailDlg::m_ExpectionNow->bEffect = TRUE;
 					m_Lock.Unlock();
-					SendMessage(::FindWindow(NULL, L"script error"), WN_DETAIL_ACTON_CHANGE, 0, (LPARAM)&m_TestDeail);
+					SendMessage(::FindWindow(NULL, CTBSCommon::m_PresentThread->cstrProjectName + L"-info"), WN_DETAIL_ACTON_CHANGE, 0, (LPARAM)&m_TestDeail);
 					CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_Action[0]->sOperationType_e);
 				}				
 				if (iExpFlag == 1)
 				{
 					INT		iTime;
-					CHAR	cNum[10];
 					CString cstrTitle;
-					
-					_itoa_s(iNameNum, cNum, 10);
-					cstrTitle = L"MSComm" + CString(cNum);
+					cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 					m_Expection.pEvent = new CEvent;
 					SendMessage(::FindWindow(NULL, cstrTitle), WM_EXPECTATION_CHECK, 0, (LPARAM)&m_Expection);
 
@@ -937,22 +898,21 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 					else if (m_Action[0]->strCmdType == "CMD")
 					{
 						INT		n;
-						CHAR	cNum[10];
+						CHAR	arryCMD[MAX_PATH];
 						CString	cstrTitle;
-						const CHAR	*pCMD;
+						
 
-						_itoa_s(iNameNum, cNum, 10);
-						cstrTitle = L"MSComm" + CString(cNum);
+						cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 						::SendMessage(::FindWindow(NULL, cstrTitle), WM_KEYBOARD_MSG, 1, 0x03);
 
 						m_Action[0]->strCmd += "\n";
-						pCMD = m_Action[0]->strCmd.c_str();
+						memcpy(arryCMD,m_Action[0]->strCmd.c_str(),m_Action[0]->strCmd.length());
 						n = m_Action[0]->strCmd.length();
-						::SendMessage(::FindWindow(NULL, cstrTitle), WM_KEYBOARD_MSG, n + 1, (LPARAM)pCMD);
+						::SendMessage(::FindWindow(NULL, cstrTitle), WM_KEYBOARD_MSG, n + 1, (LPARAM)arryCMD);
 					}
 					else if (m_Action[0]->strCmdType == "MANUAL")
 					{
-						INT		iTabIndex = -1;
+						/*INT		iTabIndex = -1;
 						INT		ii = 0;
 						WCHAR	label[64];
 						TC_ITEM	m_Tci;
@@ -963,7 +923,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 						
 						for (ii; ii < CTBSCommon::iTBSNum; ii++)
 						{
-							CTBSPredictionDlg::m_TabControl->GetItem(ii, &m_Tci);
+						
 							if (CString(label) == m_PresentThread->cstrProjectName)
 							{
 								iTabIndex = ii;
@@ -979,9 +939,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 							{
 								iTabIndex = 1 << iTabIndex;
 							}
-							CTBSPredictionDlg::m_TabControl->uiFlag |= iTabIndex;
-							CTBSPredictionDlg::m_TabControl->Invalidate();
-							INT iTabNum = CTBSPredictionDlg::m_TabControl->GetCurSel();
+							
 							CHAR cCmd[MAX_PATH];
 							strcpy_s(cCmd, m_Action[0]->strCmd.c_str());
 							INT iLength = MultiByteToWideChar(CP_ACP, 0, cCmd, -1, NULL, 0);
@@ -1003,14 +961,12 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 								m_Action[0] = NULL;
 								strExpect += *(m_Expection.strCmd);
 								strActual += "无法满足条件";
-								CTBSPredictionDlg::m_TabControl->uiFlag &= (~iTabIndex);
-								CTBSPredictionDlg::m_TabControl->Invalidate();
+								
 								break;
 							}
 							delete[] pBuffer;
-							CTBSPredictionDlg::m_TabControl->uiFlag &= (~iTabIndex);
-							CTBSPredictionDlg::m_TabControl->Invalidate();
-						}				
+							
+						}	*/			
 					}
 					else
 					{
@@ -1045,38 +1001,21 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 				{
 
 				}
-				
-				m_SingkeLock.Lock();
-				for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
+			
+				if (CTBSCommon::m_PresentThread->m_ComThread == NULL)
 				{
-					if (CTBSCommon::m_PresentThread[i].m_TestThread != NULL && iThreadID == CTBSCommon::m_PresentThread[i].m_TestThread->m_nThreadID)
-					{
-						CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-						iIndex = i;
-						break;
-					}
-					if (i == CTBSCommon::iTBSNum - 1)
-					{
-						CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-						return 0;
-					}
-				}
-				if (CTBSCommon::m_PresentThread[iIndex].m_ComThread == NULL)
-				{
-					m_SingkeLock.Unlock();
-					Sleep(iDelayTime);
+					
+					//Sleep(iDelayTime);
 					m_Expection.iResult[5] = -2;
 				}
 				else
 				{
-					m_SingkeLock.Unlock();
 					m_Expection.pEvent->Lock();
 				}
 
 				if (m_Expection.iResult[5] != 0)
 				{
 					CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-					//m_MainDlg->m_TestList.SetItemText(iItemNum, 1, SCRIPT_TEST_FAIL);
 					
 					iFail++;
 					iFailFLag	= 1;
@@ -1134,7 +1073,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 					CTBSDetailDlg::m_ActionNow = m_Action[0];
 					CTBSDetailDlg::m_ExpectionNow->bEffect = FALSE;
 					m_Lock.Unlock();
-					SendMessage(::FindWindow(NULL, L"script error"), WN_DETAIL_ACTON_CHANGE, 0, (LPARAM)&m_TestDeail);
+					SendMessage(::FindWindow(NULL, CTBSCommon::m_PresentThread->cstrProjectName + L"-info"), WN_DETAIL_ACTON_CHANGE, 0, (LPARAM)&m_TestDeail);
 					CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_Action[0]->sOperationType_e);
 				}				
 				//A
@@ -1153,22 +1092,19 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 					else if (m_Action[0]->strCmdType == "CMD")
 					{
 						INT		n;
-						CHAR	cNum[10];
 						CString	cstrTitle;
-						const CHAR	*pCMD;
-						
-						_itoa_s(iNameNum, cNum, 10);
-						cstrTitle = L"MSComm" + CString(cNum);
+						CHAR	arryCMD[MAX_PATH];
+						cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 						::SendMessage(::FindWindow(NULL, cstrTitle), WM_KEYBOARD_MSG, 1, 0x03);
 
 						m_Action[0]->strCmd += "\n";
-						pCMD = m_Action[0]->strCmd.c_str();
+						memcpy(arryCMD,m_Action[0]->strCmd.c_str(), m_Action[0]->strCmd.length());
 						n = m_Action[0]->strCmd.length();
-						::SendMessage(::FindWindow(NULL, cstrTitle), WM_KEYBOARD_MSG, n + 1, (LPARAM)pCMD);
+						::SendMessage(::FindWindow(NULL, cstrTitle), WM_KEYBOARD_MSG, n + 1, (LPARAM)arryCMD);
 					}
 					else if (m_Action[0]->strCmdType == "MANUAL")
 					{
-						INT		iTabIndex = -1;
+						/*INT		iTabIndex = -1;
 						INT		ii = 0;
 						WCHAR	label[64];
 						TC_ITEM	m_Tci;
@@ -1179,7 +1115,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 
 						for (ii; ii < CTBSCommon::iTBSNum; ii++)
 						{
-							CTBSPredictionDlg::m_TabControl->GetItem(ii, &m_Tci);
+						
 							if (CString(label) == m_PresentThread->cstrProjectName)
 							{
 								iTabIndex = ii;
@@ -1195,9 +1131,6 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 							{
 								iTabIndex = 1 << iTabIndex;
 							}
-							CTBSPredictionDlg::m_TabControl->uiFlag |= iTabIndex;
-							CTBSPredictionDlg::m_TabControl->Invalidate();
-							INT iTabNum = CTBSPredictionDlg::m_TabControl->GetCurSel();
 							CHAR cCmd[MAX_PATH];
 							strcpy_s(cCmd, m_Action[0]->strCmd.c_str());
 							INT iLength = MultiByteToWideChar(CP_ACP, 0, cCmd, -1, NULL, 0);
@@ -1220,14 +1153,10 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 								m_Action[0] = NULL;
 								strExpect += *(m_Expection.strCmd);
 								strActual += "无法满足条件";
-								CTBSPredictionDlg::m_TabControl->uiFlag &= (~(UINT(iTabIndex)));
-								CTBSPredictionDlg::m_TabControl->Invalidate();
 								break;
 							}
 							delete[] pBuffer;
-							CTBSPredictionDlg::m_TabControl->uiFlag &= (~(UINT(iTabIndex)));
-							CTBSPredictionDlg::m_TabControl->Invalidate();
-						}
+						}*/
 					}
 					else 
 					{
@@ -1271,7 +1200,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 				m_Action[1] = NULL;
 			}
 		}
-
+		CHECKEND(CTBSCommon::m_PresentThread->m_TestThread)
 		//一个case执行完成
 		if (m_pScriptRun->iEnd == 0)
 		{
@@ -1280,11 +1209,8 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		m_MainDlg->m_TestList.SetItemState(iItemNum, 0, LVIF_STATE);
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, cstrCaseName+L"，执行完成，写入当前脚本的执行结果到数据库");
 		
-		if (iFailFLag == 0)
-		{
-			//m_MainDlg->m_TestList.SetItemText(iItemNum, 1, SCRIPT_TEST_SUCCESS);
-		}
-		////写入该case的执行结果,主要包括测试结果，失败操作，测试耗时
+	
+		//写入该case的执行结果,主要包括测试结果，失败操作，测试耗时
 		//结束时间
 		m_Time = CTime::GetCurrentTime();
 		CString cstrTimeEnd = m_Time.Format(_T("%Y-%m-%d %H:%M:%S"));
@@ -1303,9 +1229,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		string strSqlResult;
 		if (iFailFLag == 0)
 		{
-
 			strSqlResult = "Update TestDetail set Result='OK' where ScriptName='" + strScriptName + "' and ProjectName='" + strProjectName + "' and CaseName='" + m_pScriptRun->strCaseName + "'";
-
 		}
 		else
 		{
@@ -1317,11 +1241,11 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		
 		if (iFailFLag == 0)
 		{
-			SendMessage(::FindWindow(NULL, L"script error"), WN_DETAIL_ACTON_CHANGE, 1, (LPARAM)&m_TestDeail);
+			SendMessage(::FindWindow(NULL, CTBSCommon::m_PresentThread->cstrProjectName + L"-info"), WN_DETAIL_ACTON_CHANGE, 1, (LPARAM)&m_TestDeail);
 		}
 		else
 		{
-			SendMessage(::FindWindow(NULL, L"script error"), WN_DETAIL_ACTON_CHANGE, 2, (LPARAM)&m_TestDeail);
+			SendMessage(::FindWindow(NULL, CTBSCommon::m_PresentThread->cstrProjectName + L"-info"), WN_DETAIL_ACTON_CHANGE, 2, (LPARAM)&m_TestDeail);
 		}
 
 		iFailFLag = 0;
@@ -1333,11 +1257,12 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		iItemNum++;
 		iSuccess++;
 	}
-	
+	CHECKEND(CTBSCommon::m_PresentThread->m_TestThread)
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"脚本执行完成，即将写入相关数据到数据库。");
+	
 	//为数据库添加此次测试总体数据
 	INT arrMenuArr[2] = { IDM_TEST_REPORT_CREATE ,IDM_TEST_REPORT_SEND };
-	CTBSPredictionDlg::tbs_menu_enable(arrMenuArr, 2);
+	CTBSDlg::tbs_menu_enable(arrMenuArr, 2);
 
 	m_Time = CTime::GetCurrentTime();
 	cstrTime = m_Time.Format(_T("%Y-%m-%d %H:%M:%S"));
@@ -1382,24 +1307,7 @@ UINT CTBSScriptParse::tbs_test_script_execute(LPVOID lpParam)
 		string strTimeCost(CW2A(cstrTime.GetString()));
 		string strSqlTimeCost = "Update TestReport set Time='" + strTimeCost + "' where ProjectName='" + strProjectName + "'";
 		m_DataBase.tbs_db_sql_exec(strSqlTimeCost);
-		CSingleLock m_SingkeLock(CTBSPredictionDlg::m_Mutex);
-		m_SingkeLock.Lock();
-		for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
-		{
-			if (CTBSCommon::m_PresentThread[i].m_TestThread != NULL && iThreadID == CTBSCommon::m_PresentThread[i].m_TestThread->m_nThreadID)
-			{
-				CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-				iIndex = i;
-				break;
-			}
-			if (i == CTBSCommon::iTBSNum - 1)
-			{
-				CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
-				return 0;
-			}
-		}
-		CTBSCommon::m_PresentThread[iIndex].m_TestThread = NULL;
-		m_SingkeLock.Unlock();
+		CTBSCommon::m_PresentThread[0].m_TestThread = NULL;
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"本次测试完成！");
 	}
 	else

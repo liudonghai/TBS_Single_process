@@ -2,7 +2,7 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSLog.h"
 #include "TBSGlobal.h"
 #include "TBSCommon.h"
@@ -87,8 +87,11 @@ void CTBSLog::tbs_log_info(const CHAR *pFile, INT iLine, const CHAR *pFunction)
 UINT CTBSLog::tbs_log_record_in(LPVOID lpParam)
 {
 	fstream pfsLogWrite(LOG_FILE_PATH, ios::in | ios::app);
+	CMutex m_MutexLog(FALSE, TBS_LOG_RECORDE_MUTEX);
+	CSingleLock m_SignleLock(&m_MutexLog);
 	while (1)
 	{
+		m_SignleLock.Lock();
 		pMutex->Lock();
 		if (!strLogInfo.empty())
 		{
@@ -96,6 +99,7 @@ UINT CTBSLog::tbs_log_record_in(LPVOID lpParam)
 			strLogInfo = "";
 		}
 		pMutex->Unlock();
+		m_SignleLock.Unlock();
 	}
 	pfsLogWrite.close();
 	return 0;

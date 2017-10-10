@@ -2,7 +2,7 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSDetailDlg.h"
 #include "afxdialogex.h"
 #include "TBSGlobal.h"
@@ -67,9 +67,9 @@ BOOL CTBSDetailDlg::OnInitDialog()
 	m_ListControl.GetWindowRect(&rc);
 	m_ListControl.InsertColumn(0, L"名称", LVCFMT_LEFT, rc.Width() * 3 / 10, 0);
 	m_ListControl.InsertColumn(1, L"结果", LVCFMT_LEFT, rc.Width() * 7 / 10, 0);
+	SetWindowText(CTBSCommon::m_PresentThread->cstrProjectName + L"-info");
 	tbs_test_result_show_detail();
-	return TRUE;  // return TRUE unless you set the focus to a control
-				  // 异常: OCX 属性页应返回 FALSE
+	return TRUE;
 }
 
 
@@ -744,6 +744,11 @@ void CTBSDetailDlg::tbs_test_result_show_detail()
 				}
 			}
 		}
+	}
+	//执行完成
+	else if (SCRIPT_TEST_FINISH == cstrResult)
+	{
+		MessageBox(L"Ok");
 	}
 	//nothing
 	else

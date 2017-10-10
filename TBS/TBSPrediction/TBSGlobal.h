@@ -4,7 +4,7 @@
 #include "TBSScriptParse.h"
 #include "TBSRedRat.h"
 #include "TBSLog.h"
-
+#include "TBSDlg.h"
 //CString to string
 #define TOSTRING(x) CW2A((x).GetString())
 
@@ -12,15 +12,12 @@
 #define TOCSTRING(x) (x).c_str()
 
 
+
 typedef struct TBS_PRESENT_THREAD_t
 {
 	bool			bOpen			= false;	//check the project if opened;
 	bool			bLock			= false;
-	INT				iTabNum			= -1;		//the number in the tab control;
 	CString			cstrRedRat;					//select the device of redrat
-	INT				iNum			= -1;		//the start number of project,this value is setted for dialog name;
-	INT				iScript			= -1;		//the index of m_pScriptParse;
-	//CMutex			m_Mutex;					//synchronize the script parse and run;
 	CEvent			m_Event;					//synchronize the message of log saved;
 	CEvent			m_ManualEvent;				//Manual Test
  	CString			cstrProjectName	= L"";		//the project name of the present project
@@ -30,6 +27,8 @@ typedef struct TBS_PRESENT_THREAD_t
 	CWinThread		*m_ParseThread	= NULL;		//the pointer of script parse thread;
 	CWinThread		*m_TestThread	= NULL;		//the pointer of script test thread;
 	CTBSMainDlg		*m_pMainDlg		= NULL;		//the pointer of mian dialog;
+	CTBSDlg			*m_TBSDialog	= NULL;	
+
 }TBS_PRESENT_THREAD_t;
 
 //synchronize the script parse and run,create in the CTBSScriptSelectDlg

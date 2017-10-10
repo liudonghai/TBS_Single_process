@@ -2,11 +2,11 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "MSCommDlg.h"
 #include "afxdialogex.h"
 #include "CMSComm.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSScriptParse.h"
 #include <regex>
 #include <string>
@@ -17,8 +17,8 @@ IMPLEMENT_DYNAMIC(CMSCommDlg, CDialogEx)
 CMSCommDlg::CMSCommDlg(CWnd* pParent)
 	: CDialogEx(IDD_DIALOG1, pParent)
 {
-	cstrProjectName = CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName;
-	m_MainDlg		= CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg;
+	cstrProjectName = CTBSCommon::m_PresentThread->cstrProjectName;
+	m_MainDlg		= CTBSCommon::m_PresentThread->m_pMainDlg;
 	m_Exptation		= NULL;
 	m_MSCOMbutton	= new CMSComm;
 	pGetData		= NULL;
@@ -68,25 +68,43 @@ BOOL CMSCommDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	CHAR	cNum[10];
-	WCHAR	pFileName[MAX_PATH] = { 0 };
+	
+	CString cstrTitle;
+	/*WCHAR	pFileName[MAX_PATH] = { 0 };
 	WCHAR	pFilePath[MAX_PATH] = { 0 };
 	WCHAR	pEachLine[MAX_PATH] = { 0 };
-	CString cstrTitle;
+	WCHAR	pProjectName[MAX_PATH] = { 0 };*/
 
-	_itoa_s(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].iNum, cNum, 10);
-	cstrTitle = L"MSComm" + CString(cNum);
+
+	
+	cstrTitle = L"MSComm" + CTBSCommon::m_PresentThread->cstrProjectName;
 	SetWindowText(cstrTitle);
-	GetPrivateProfileString(L"LOGFileName", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
-	GetPrivateProfileString(L"LOGFilePath", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
-	GetPrivateProfileString(L"LOGFileLine", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	tbs_get_log_info();
+	/*CMutex m_ConfigMutex(FALSE, TBS_CONFIG_MUREX);
+	CSingleLock m_SingleLock(&m_ConfigMutex);
+	m_SingleLock.Lock();
+	GetPrivateProfileString(L"LOGFileTmp", L"Project", L"", pProjectName, MAX_PATH, CONFIGFILE);
+	if (cstrProjectName == (CString)pProjectName)
+	{
+		GetPrivateProfileString(L"LOGFileTmp", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFileTmp", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFileTmp", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	}
+	else
+	{
+		GetPrivateProfileString(L"LOGFile", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFile", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFile", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	}
+	m_SingleLock.Unlock();
+
 	this->cstrFilePath = pFilePath;
 	this->cstrFileName = pFileName;
 	this->cstrEachLine = pEachLine;
 	if (!cstrFilePath.IsEmpty() && !cstrFileName.IsEmpty())
 	{
 		tbs_log_file_create();
-	}
+	}*/
 	return TRUE;
 }
 
@@ -285,11 +303,12 @@ LRESULT CMSCommDlg::OnLogFileRec(WPARAM nullParameter, LPARAM cstrFileName)
 	{
 		pfsFile.close();
 	}
-	CString *cstrLogFile = (CString*)cstrFileName;
+	/*CString *cstrLogFile = (CString*)cstrFileName;
 	this->cstrFilePath = cstrLogFile[0];
 	this->cstrFileName = cstrLogFile[1];
 	this->cstrEachLine = cstrLogFile[2];
-	tbs_log_file_create();
+	tbs_log_file_create();*/
+	tbs_get_log_info();
 	return 0;
 }
 
@@ -411,4 +430,38 @@ void CMSCommDlg::OnTimer(UINT_PTR nIDEvent)
 	m_Exptation = NULL;
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__,L"¶¨Ê±Æ÷½áÊø£¡");
 	CDialogEx::OnTimer(nIDEvent);
+}
+void CMSCommDlg::tbs_get_log_info()
+{
+	WCHAR	pFileName[MAX_PATH] = { 0 };
+	WCHAR	pFilePath[MAX_PATH] = { 0 };
+	WCHAR	pEachLine[MAX_PATH] = { 0 };
+	WCHAR	pProjectName[MAX_PATH] = { 0 };
+	
+
+	CMutex m_ConfigMutex(FALSE, TBS_CONFIG_MUREX);
+	CSingleLock m_SingleLock(&m_ConfigMutex);
+	m_SingleLock.Lock();
+	GetPrivateProfileString(L"LOGFileTmp", L"Project", L"", pProjectName, MAX_PATH, CONFIGFILE);
+	if (cstrProjectName == (CString)pProjectName)
+	{
+		GetPrivateProfileString(L"LOGFileTmp", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFileTmp", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFileTmp", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	}
+	else
+	{
+		GetPrivateProfileString(L"LOGFile", L"Name", L"", pFileName, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFile", L"Path", L"", pFilePath, MAX_PATH, CONFIGFILE);
+		GetPrivateProfileString(L"LOGFile", L"Line", L"", pEachLine, MAX_PATH, CONFIGFILE);
+	}
+	m_SingleLock.Unlock();
+
+	this->cstrFilePath = pFilePath;
+	this->cstrFileName = pFileName;
+	this->cstrEachLine = pEachLine;
+	if (!cstrFilePath.IsEmpty() && !cstrFileName.IsEmpty())
+	{
+		tbs_log_file_create();
+	}
 }

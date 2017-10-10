@@ -4,8 +4,8 @@
 
 #include "stdafx.h"
 #include "TBSRedRat.h"
-#include "TBSPrediction.h"
-#include "TBSPredictionDlg.h"
+#include "TBSDlg.h"
+#include "TBSApp.h"
 #include "afxdialogex.h"
 #include "TBSComConnectDlg.h"
 #include "TBSMainDlg.h"
@@ -18,7 +18,7 @@
 #include "TBSMainDlg.h"
 #include "TBSTestDataInDlg.h"
 #include "TBSLogSaveDlg.h"
-#include "TBSSelectIR.h"
+#include "TBSSelectIRDlg.h"
 #include "TBSGlobal.h"
 #include <regex>
 #include <assert.h>
@@ -61,55 +61,104 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 //静态成员初始化
-CMenu *CTBSPredictionDlg::pMenu = NULL;
+CMenu *CTBSDlg::pMenu = NULL;
 
-CTBSPredictionDlg::CTBSPredictionDlg(CWnd* pParent )
+CTBSDlg::CTBSDlg(CWnd* pParent )
 	: CDialogEx(IDD_TBSPREDICTION_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+}
+CTBSDlg::~CTBSDlg()
+{
+	WCHAR	pFileName[MAX_PATH] = { 0 };
+	WCHAR	pFilePath[MAX_PATH] = { 0 };
+	WCHAR	pEachLine[MAX_PATH] = { 0 };
+	WCHAR	pProjectName[MAX_PATH] = { 0 };
+
+	CMutex m_ConfigMutex(FALSE, TBS_CONFIG_MUREX);//进程互斥
+	CSingleLock m_SingleLock_Config(&m_ConfigMutex);
+	m_SingleLock_Config.Lock();
 	
+	//清除配置文件内LOGFileTmp的数据。
+	GetPrivateProfileString(L"LOGFileTmp", L"Project", L"", pProjectName, MAX_PATH, CONFIGFILE);
+	if (CTBSCommon::m_PresentThread->cstrProjectName == (CString)pProjectName)
+	{
+		WritePrivateProfileString(L"LOGFileTmp", L"Project", L"", CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Name", L"", CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Path", L"", CONFIGFILE);
+		WritePrivateProfileString(L"LOGFileTmp", L"Line", L"", CONFIGFILE);
+	}
+
+	//清除配置文件的RedRat数据
+	if (CTBSCommon::m_PresentThread->cstrRedRat != L"")
+	{
+		WCHAR arrRedRat[MAX_PATH];
+		wstring cstrWrite;
+		GetPrivateProfileString(L"RedRat", L"Device", L"", arrRedRat, MAX_PATH, CONFIGFILE);
+		cstrWrite = regex_replace(arrRedRat, (wregex)(CTBSCommon::m_PresentThread->cstrRedRat + L","), L"");
+		WritePrivateProfileString(L"RedRat", L"Device", (CString)cstrWrite.c_str(), CONFIGFILE);
+	}
+	m_SingleLock_Config.Unlock();
+
+	//清楚数据库内的本次测试数据。
+	CSingleLock m_SingleLock_DataBasae(CTBSDataBase::m_pMutex);//进程互斥
+	m_SingleLock_DataBasae.Lock();
+	INT		iResultExec = 0;
+	CHAR	*pError = NULL;
+	string	strProjectName = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
+	string	sqlTestReport = "delete from TestReport where ProjectName='" + strProjectName + "'";
+	string	sqlTestDetail = "delete from TestDetail where ProjectName='" + strProjectName + "'";
+	CTBSDataBase m_DataBase(DATAPATH);
+	iResultExec = sqlite3_exec(m_DataBase.m_pDataBase, sqlTestReport.c_str(), NULL, NULL, &pError);
+	iResultExec = sqlite3_exec(m_DataBase.m_pDataBase, sqlTestDetail.c_str(), NULL, NULL, &pError);
+	m_SingleLock_DataBasae.Unlock();
+
+	HWND hWnd = ::FindWindow(NULL, L"RedRat IR Signal Database Utility");
+	if (hWnd != NULL)
+	{
+		::SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		::ShowWindow(hWnd, SW_RESTORE);
+		return;
+	}
 
 }
 
 //初始化静态成员变量
-CTBSTabCtrl *CTBSPredictionDlg::m_TabControl=new CTBSTabCtrl;
-CMutex		*CTBSPredictionDlg::m_Mutex =new CMutex;
-//CTabCtrl	*CTBSPredictionDlg::m_TabControl=new CTabCtrl;
-void CTBSPredictionDlg::DoDataExchange(CDataExchange* pDX)
+CMutex		*CTBSDlg::m_Mutex =new CMutex;
+void CTBSDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_TAB_CONTROL, *m_TabControl);
 }
 
-BEGIN_MESSAGE_MAP(CTBSPredictionDlg, CDialogEx)
+BEGIN_MESSAGE_MAP(CTBSDlg, CDialogEx)
 	ON_WM_SIZE()
 	ON_WM_PAINT()
 	ON_WM_SYSCOMMAND()
 	ON_WM_QUERYDRAGICON()
-	ON_COMMAND(IDM_CONNECT_STB, &CTBSPredictionDlg::OnConnectStb)
-	ON_COMMAND(IDM_DISCONNECT_STB, &CTBSPredictionDlg::OnDisconnectStb)
-	ON_COMMAND(IDM_NEW_PROJECT, &CTBSPredictionDlg::OnNewProject)
-	ON_COMMAND(IDM_CLOSE_PROJECT, &CTBSPredictionDlg::OnCloseProject)
-	ON_COMMAND(IDM_ABOUT, &CTBSPredictionDlg::OnAbout)
-	ON_COMMAND(IDM_ADD_SCRIPT, &CTBSPredictionDlg::OnAddScript)
-	ON_COMMAND(IDM_OPEN_PROJECT, &CTBSPredictionDlg::OnOpenProject)
-	ON_COMMAND(IDM_IR_IN, &CTBSPredictionDlg::OnIrIn)
-	ON_COMMAND(IDM_UPDATE_SCRIPT, &CTBSPredictionDlg::OnUpdateScript)
-	ON_COMMAND(IDM_DELETE_SCRIPT, &CTBSPredictionDlg::OnDeleteScript)
-	ON_COMMAND(IDM_SELECT_RUN, &CTBSPredictionDlg::OnSelectRun)
-	ON_COMMAND(IDM_TEST_DATA_IN, &CTBSPredictionDlg::OnTestDataIn)
-	ON_COMMAND(IDM_TEST_REPORT_CREATE, &CTBSPredictionDlg::OnTestReportCreate)
-	ON_COMMAND(IDM_LOG_SAVE, &CTBSPredictionDlg::OnLogSave)
-	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_CONTROL, &CTBSPredictionDlg::OnTcnSelchangeTabControl)
-	ON_COMMAND(IDM_CONNECT_IR, &CTBSPredictionDlg::OnConnectIr)
-	ON_COMMAND(IDM_DISCON_IR, &CTBSPredictionDlg::OnDisconIr)
-	ON_COMMAND(IDM_TEST_FINISH, &CTBSPredictionDlg::OnTestFinish)
-	ON_COMMAND(ID_IR_VALUE_IN, &CTBSPredictionDlg::OnIrValueIn)
+	ON_COMMAND(IDM_CONNECT_STB, &CTBSDlg::OnConnectStb)
+	ON_COMMAND(IDM_DISCONNECT_STB, &CTBSDlg::OnDisconnectStb)
+	ON_COMMAND(IDM_NEW_PROJECT, &CTBSDlg::OnNewProject)
+	ON_COMMAND(IDM_CLOSE_PROJECT, &CTBSDlg::OnCloseProject)
+	ON_COMMAND(IDM_ABOUT, &CTBSDlg::OnAbout)
+	ON_COMMAND(IDM_ADD_SCRIPT, &CTBSDlg::OnAddScript)
+	ON_COMMAND(IDM_OPEN_PROJECT, &CTBSDlg::OnOpenProject)
+	ON_COMMAND(IDM_IR_IN, &CTBSDlg::OnIrIn)
+	ON_COMMAND(IDM_UPDATE_SCRIPT, &CTBSDlg::OnUpdateScript)
+	ON_COMMAND(IDM_DELETE_SCRIPT, &CTBSDlg::OnDeleteScript)
+	ON_COMMAND(IDM_SELECT_RUN, &CTBSDlg::OnSelectRun)
+	ON_COMMAND(IDM_TEST_DATA_IN, &CTBSDlg::OnTestDataIn)
+	ON_COMMAND(IDM_TEST_REPORT_CREATE, &CTBSDlg::OnTestReportCreate)
+	ON_COMMAND(IDM_LOG_SAVE, &CTBSDlg::OnLogSave)
+	ON_COMMAND(IDM_CONNECT_IR, &CTBSDlg::OnConnectIr)
+	ON_COMMAND(IDM_DISCON_IR, &CTBSDlg::OnDisconIr)
+	ON_COMMAND(IDM_TEST_FINISH, &CTBSDlg::OnTestFinish)
+	ON_COMMAND(ID_IR_VALUE_IN, &CTBSDlg::OnIrValueIn)
+	ON_COMMAND(ID_32826, &CTBSDlg::On32826)
 END_MESSAGE_MAP()
 
 // CTBSPredictionDlg 消息处理程序
 
-BOOL CTBSPredictionDlg::OnInitDialog()
+BOOL CTBSDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 	// 将“关于...”菜单项添加到系统菜单中。
@@ -134,7 +183,7 @@ BOOL CTBSPredictionDlg::OnInitDialog()
 	//  执行此操作
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
-
+	ShowWindow(SW_MAXIMIZE);
 	CTBSLog	m_LogInfo;
 	AfxBeginThread(CTBSLog::tbs_log_record_in,NULL);
 	CFile m_ConfFile;
@@ -151,12 +200,10 @@ BOOL CTBSPredictionDlg::OnInitDialog()
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "数据库初始化失败");
 	}
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "数据库初始化成功");
-
-	ShowWindow(SW_MAXIMIZE);
 	return TRUE;
 }
 
-void CTBSPredictionDlg::OnSysCommand(UINT nID, LPARAM lParam)
+void CTBSDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
 	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
 	{
@@ -169,12 +216,12 @@ void CTBSPredictionDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	}
 }
 
-HCURSOR CTBSPredictionDlg::OnQueryDragIcon()
+HCURSOR CTBSDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CTBSPredictionDlg::OnConnectStb()
+void CTBSDlg::OnConnectStb()
 {
 	CTBSComConnectDlg m_NewConnectDlg;
 	m_NewConnectDlg.DoModal();
@@ -182,18 +229,18 @@ void CTBSPredictionDlg::OnConnectStb()
 
 }
 
-void CTBSPredictionDlg::OnOK()
+void CTBSDlg::OnOK()
 {
 }
 
-void CTBSPredictionDlg::OnDisconnectStb()
+void CTBSDlg::OnDisconnectStb()
 {
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread != NULL)
+	if (CTBSCommon::m_PresentThread->m_ComThread != NULL)
 	{
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread->PostThreadMessageW(WM_QUIT, NULL, NULL);
-		WaitForSingleObject(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread, INFINITE);
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread = NULL;
-		CloseHandle(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread);
+		CTBSCommon::m_PresentThread->m_ComThread->PostThreadMessageW(WM_QUIT, NULL, NULL);
+		WaitForSingleObject(CTBSCommon::m_PresentThread->m_ComThread, INFINITE);
+		CTBSCommon::m_PresentThread->m_ComThread = NULL;
+		CloseHandle(CTBSCommon::m_PresentThread->m_ComThread);
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "断开串口连接");
 		MessageBox(L"断开串口连接成功！");
 	}
@@ -203,79 +250,38 @@ void CTBSPredictionDlg::OnDisconnectStb()
 	}
 }
 
-void CTBSPredictionDlg::OnNewProject()
+void CTBSDlg::OnNewProject()
 {
 	CTBSProjectCreatDlg	m_NewProject;
 	m_NewProject.DoModal();
 }
 
-void CTBSPredictionDlg::OnCloseProject()
+void CTBSDlg::OnCloseProject()
 {
-	CSingleLock m_SingleLock(m_Mutex);
-	m_SingleLock.Lock();
-	INT iPresent = CTBSCommon::iTBSPresent;
-	UINT uiTab = CTBSPredictionDlg::m_TabControl->uiFlag;
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread != NULL)
+	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, CTBSCommon::m_PresentThread->cstrProjectName);
+	if (CTBSCommon::m_PresentThread->m_ComThread != NULL)
 	{
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread->PostThreadMessage(WM_QUIT, NULL, NULL);
+		CTBSCommon::m_PresentThread->m_ComThread->PostThreadMessage(WM_QUIT, NULL, NULL);
 	}
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_MainThread->PostThreadMessage(WM_QUIT, NULL, NULL);
-	
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread = NULL;
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_MainThread = NULL;
-	CloseHandle(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_ComThread);
-	CloseHandle(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_MainThread);
-	CTBSPredictionDlg::m_TabControl->DeleteItem(CTBSCommon::iTBSPresent);
-	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
-	for (INT i = CTBSCommon::iTBSPresent; i < CTBSCommon::iTBSNum; i++)
-	{
-		memcpy(&CTBSCommon::m_PresentThread[i], &CTBSCommon::m_PresentThread[i + 1], sizeof(TBS_PRESENT_THREAD_t));
-		CTBSCommon::m_PresentThread[i].iTabNum--; 
-	}
-
-	CTBSCommon::iTBSNum--;
-	if (CTBSCommon::iTBSNum == 0)
-	{
-		tbs_init_menu();
-	}
-	else
-	{
-		CTBSPredictionDlg::m_TabControl->uiFlag = CTBSPredictionDlg::m_TabControl->uiFlag >> (iPresent+1);
-		CTBSPredictionDlg::m_TabControl->uiFlag = CTBSPredictionDlg::m_TabControl->uiFlag << iPresent;
-		uiTab = uiTab << (8 - iPresent);
-		uiTab &= 0x00FF;
-		uiTab = uiTab >> (8 - iPresent);
-		CTBSPredictionDlg::m_TabControl->uiFlag |= uiTab;
-
-		CTBSCommon::iTBSPresent = 0;
-		CTBSPredictionDlg::m_TabControl->SetCurSel(CTBSCommon::iTBSPresent);
-		if (CTBSCommon::m_PresentThread[0].bLock)
-		{
-			CTBSCommon::m_PresentThread[0].m_ManualEvent.SetEvent();
-			CTBSCommon::m_PresentThread[0].bLock = false;
-		}
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg->ShowWindow(true);
-		for (INT i = 1; i < CTBSCommon::iTBSNum; i++)
-		{
-			if (CTBSCommon::m_PresentThread[i].m_pMainDlg != NULL)
-			{
-				CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(false);
-			}
-		}
-		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
-	}
-	m_SingleLock.Unlock();
+	CTBSCommon::m_PresentThread->m_MainThread->PostThreadMessage(WM_QUIT, NULL, NULL);
+	CTBSCommon::m_PresentThread->m_ComThread = NULL;
+	CTBSCommon::m_PresentThread->m_MainThread = NULL;
+	CloseHandle(CTBSCommon::m_PresentThread->m_ComThread);
+	CloseHandle(CTBSCommon::m_PresentThread->m_MainThread);
+	CTBSCommon::m_PresentThread->m_TBSDialog->SetWindowText(L"TBS");
+	CTBSCommon::m_PresentThread->cstrProjectName = L"";
+	tbs_init_menu();
 }
 
-void CTBSPredictionDlg::OnAbout()
+void CTBSDlg::OnAbout()
 {
 	CAboutDlg dlgAbout;
 	dlgAbout.DoModal();
 }
 
-void CTBSPredictionDlg::OnAddScript()
+void CTBSDlg::OnAddScript()
 {
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName == L"")
+	if (CTBSCommon::m_PresentThread->cstrProjectName == L"")
 		return;
 
 	WCHAR		BUFFER[80];
@@ -300,7 +306,7 @@ void CTBSPredictionDlg::OnAddScript()
 		string	strSql;
 		CString csProjectConf;
 		CTBSDataBase m_DataBase(DATAPATH);
-		strProjectName = TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+		strProjectName = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 		SHGetPathFromIDList(targetLocation, wcTargetPath);
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, wcTargetPath);
 		strSql = "delete  from TestCase where ProjectName = '" + strProjectName + "'";
@@ -308,22 +314,22 @@ void CTBSPredictionDlg::OnAddScript()
 		tbs_file_find(wcTargetPath);
 
 		csProjectConf = PROJECTPATH;
-		csProjectConf = csProjectConf + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L"\\" + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L".ini";
+		csProjectConf = csProjectConf + CTBSCommon::m_PresentThread->cstrProjectName + L"\\" + CTBSCommon::m_PresentThread->cstrProjectName + L".ini";
 		WritePrivateProfileString(L"ScriptPath", L"Path", wcTargetPath, csProjectConf);
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"脚本添加完成！");
 		MessageBox(L"脚本添加完成");	
 	}
 }
 
-void CTBSPredictionDlg::OnOpenProject()
+void CTBSDlg::OnOpenProject()
 {
 	CTBSProjectOpenDlg m_OpenProjectdlg;
 	m_OpenProjectdlg.DoModal();
 }
 
-void CTBSPredictionDlg::OnIrIn()
+void CTBSDlg::OnIrIn()
 {
-	assert(!CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName.IsEmpty());
+	assert(!CTBSCommon::m_PresentThread->cstrProjectName.IsEmpty());
 
 	CString csProjectPath;
 	CString csfilter;
@@ -334,26 +340,26 @@ void CTBSPredictionDlg::OnIrIn()
 	if (IDOK == openFileDlg.DoModal())
 	{
 		cstrIRFile = openFileDlg.GetPathName();
-		csProjectPath = PROJECTPATH + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L"\\" + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L".ini";
+		csProjectPath = PROJECTPATH + CTBSCommon::m_PresentThread->cstrProjectName + L"\\" + CTBSCommon::m_PresentThread->cstrProjectName + L".ini";
 
 		WritePrivateProfileString(L"IRData", L"Path", cstrIRFile, csProjectPath);
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrIRFile = cstrIRFile;
+		CTBSCommon::m_PresentThread->cstrIRFile = cstrIRFile;
 	}
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, cstrIRFile);
 }
 
 //脚本更新
-void CTBSPredictionDlg::OnUpdateScript()
+void CTBSDlg::OnUpdateScript()
 {
-	assert(!CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName.IsEmpty());
-	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+	assert(!CTBSCommon::m_PresentThread->cstrProjectName.IsEmpty());
+	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, CTBSCommon::m_PresentThread->cstrProjectName);
 	
 	CHAR	*pDirPath = NULL;
 	WCHAR	pGetData[MAX_PATH];
 	string	str1;
 	string	str2;
 	string	strSql;
-	CString cstrIniPath = PROJECTPATH + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L"\\" + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L".ini";
+	CString cstrIniPath = PROJECTPATH + CTBSCommon::m_PresentThread->cstrProjectName + L"\\" + CTBSCommon::m_PresentThread->cstrProjectName + L".ini";
 	CString cstrScriptPath;
 	CTBSDataBase m_DataBase(DATAPATH);
 
@@ -371,7 +377,7 @@ void CTBSPredictionDlg::OnUpdateScript()
 		return;
 	}
 
-	str1 = TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+	str1 = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 	strSql = "delete  from TestCase where ProjectName = '" + str1 + "'";
 	m_DataBase.tbs_db_sql_exec(strSql);
 
@@ -383,21 +389,21 @@ void CTBSPredictionDlg::OnUpdateScript()
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "脚本更新完成！");
 }
 
-void CTBSPredictionDlg::OnDeleteScript()
+void CTBSDlg::OnDeleteScript()
 {
 	CTBSScriptDeleteDlg m_DeleteDlg;
 	m_DeleteDlg.DoModal();
 
 }
 
-void CTBSPredictionDlg::OnSelectRun()
+void CTBSDlg::OnSelectRun()
 {
 	CTBSScriptSelectDlg m_SelectDlg;
 	m_SelectDlg.DoModal();
 }
 
 // 初始化菜单
-void CTBSPredictionDlg::tbs_init_menu()
+void CTBSDlg::tbs_init_menu()
 {
 	m_MainMenu.EnableMenuItem(IDM_LOG_SAVE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
 	m_MainMenu.EnableMenuItem(IDM_NEW_PROJECT, MF_BYCOMMAND | MF_ENABLED);
@@ -422,7 +428,7 @@ void CTBSPredictionDlg::tbs_init_menu()
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "菜单初始化完成！");
 }
 
-void CTBSPredictionDlg::tbs_menu_enable(INT *pId, INT iNum)
+void CTBSDlg::tbs_menu_enable(INT *pId, INT iNum)
 {
 	for (INT i = 0; i < iNum; i++)
 	{
@@ -430,7 +436,7 @@ void CTBSPredictionDlg::tbs_menu_enable(INT *pId, INT iNum)
 	}
 }
 
-void CTBSPredictionDlg::tbs_menu_disable(INT *pId, INT iNum)
+void CTBSDlg::tbs_menu_disable(INT *pId, INT iNum)
 {
 	for (INT i = 0; i < iNum; i++)
 	{
@@ -438,61 +444,62 @@ void CTBSPredictionDlg::tbs_menu_disable(INT *pId, INT iNum)
 	}
 }
 
-void CTBSPredictionDlg::OnSize(UINT nType, INT cx, INT cy)
+void CTBSDlg::OnSize(UINT nType, INT cx, INT cy)
 {
 	CDialogEx::OnSize(nType, cx, cy);
 	Invalidate();
 }
 
-void CTBSPredictionDlg::OnPaint()
+void CTBSDlg::OnPaint()
 {
 	CPaintDC dc(this); 
 	CRect m_Rect;
-	CRect m_TabRect;
-	if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg != NULL)
+	//CRect m_TabRect;
+	if (CTBSCommon::m_PresentThread->m_pMainDlg != NULL)
 	{
 		GetClientRect(&m_Rect);
-		m_TabControl->MoveWindow(&m_Rect);
+		//m_TabControl->MoveWindow(&m_Rect);
 
-		m_TabControl->GetClientRect(&m_Rect);
-		m_TabControl->GetItemRect(0, &m_TabRect);
-		m_Rect.top += m_TabRect.Height();
+		//m_TabControl->GetClientRect(&m_Rect);
+		//m_TabControl->GetItemRect(0, &m_TabRect);
+		//m_Rect.top += m_TabRect.Height();
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_Rect.top);
-		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_TabRect.Height());
-		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_Rect.Height());
+		//CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_TabRect.Height());
+		//CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, m_Rect.Height());
 
-		CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].m_pMainDlg->MoveWindow(&m_Rect);
+		CTBSCommon::m_PresentThread->m_pMainDlg->MoveWindow(&m_Rect);
 	}
 	else
 	{
-		GetClientRect(&m_Rect);
+		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
+		//GetClientRect(&m_Rect);
 		//m_Rect.top -= 5;
-		m_TabControl->MoveWindow(&m_Rect);
+		//m_TabControl->MoveWindow(&m_Rect);
 	}
 }
 
-void CTBSPredictionDlg::OnTestDataIn()
+void CTBSDlg::OnTestDataIn()
 {
 	CTBSTestDataInDlg m_TestDataIn;
 	m_TestDataIn.DoModal();
 
 }
 //生成测试报告
-void CTBSPredictionDlg::OnTestReportCreate()
+void CTBSDlg::OnTestReportCreate()
 {
 	INT		iRow	= 0;
 	INT		iCloum	= 0;
 	CHAR	**ppGetTestReport;
 	CTime	m_Time;
 	CFile	m_ProjectFile;
-	string	ProjectName(TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName));
+	string	ProjectName(TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName));
 	string	strSqlSelect = "select *from TestReport where ProjectName='" + ProjectName + "'";
 	CString cstrTime;
-	CString cstrProjectName = CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName;
+	CString cstrProjectName = CTBSCommon::m_PresentThread->cstrProjectName;
 	CString cstrTestReportName;
 	CString cstraReportPath;
 	CTBSDataBase m_DataBase(DATAPATH);
-	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"开始生成测试报告: "+ CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"开始生成测试报告: "+ CTBSCommon::m_PresentThread->cstrProjectName);
 	
 	cstraReportPath = L"..\\testreport";
 	if (0 == CTBSCommon::tbs_file_check(cstraReportPath))
@@ -522,8 +529,8 @@ void CTBSPredictionDlg::OnTestReportCreate()
 		}
 		tbs_test_report_head_create(cstrTestReportName, ppGetTestReport, iCloum);
 		tbs_test_report_information_create(cstrTestReportName, ppGetTestReport, iCloum);
-		tbs_test_report_case_result_create(cstraReportPath + L"\\" + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L"_" + cstrTime);
-		tbs_test_report_case_information_create(cstraReportPath + L"\\" + CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName + L"_" + cstrTime);
+		tbs_test_report_case_result_create(cstraReportPath + L"\\" + CTBSCommon::m_PresentThread->cstrProjectName + L"_" + cstrTime);
+		tbs_test_report_case_information_create(cstraReportPath + L"\\" + CTBSCommon::m_PresentThread->cstrProjectName + L"_" + cstrTime);
 	}
 	else
 	{
@@ -531,7 +538,7 @@ void CTBSPredictionDlg::OnTestReportCreate()
 	}
 }
 // 写入基本信息
-void CTBSPredictionDlg::tbs_test_report_head_create(CString cstrFileName, CHAR **ppData, INT iCloum)
+void CTBSDlg::tbs_test_report_head_create(CString cstrFileName, CHAR **ppData, INT iCloum)
 {
 	assert(ppData != NULL);
 	fstream fsTestreport(cstrFileName, ios::app | ios::in);
@@ -565,7 +572,7 @@ void CTBSPredictionDlg::tbs_test_report_head_create(CString cstrFileName, CHAR *
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
 }
 // 写入测试结果汇总
-void CTBSPredictionDlg::tbs_test_report_information_create(CString cstrFileName, CHAR **ppData, INT iCloum)
+void CTBSDlg::tbs_test_report_information_create(CString cstrFileName, CHAR **ppData, INT iCloum)
 {
 	assert(ppData != NULL);
 	fstream fsTestreport(cstrFileName, ios::app | ios::in);
@@ -601,7 +608,7 @@ void CTBSPredictionDlg::tbs_test_report_information_create(CString cstrFileName,
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__);
 }
 // 写入测试报告(每个case的测试结果)
-void CTBSPredictionDlg::tbs_test_report_case_result_create(CString cstrFileName)
+void CTBSDlg::tbs_test_report_case_result_create(CString cstrFileName)
 {
 	INT		iRow = 0;
 	INT		iCloum = 0;
@@ -617,7 +624,7 @@ void CTBSPredictionDlg::tbs_test_report_case_result_create(CString cstrFileName)
 	fstream fsTestReport(cstrFileName + L".html", ios::app | ios::in);
 
 	strFileName = TOSTRING(cstrFileName);
-	strProjectName = TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+	strProjectName = TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 	strSqlselect = "Select *from TestDetail where ProjectName='" + strProjectName + "' and CaseName='Describe'";
 	m_DataBase.tbs_db_data_query(strSqlselect, &ppGetData, &iRow, &iCloum);
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iRow);
@@ -678,7 +685,7 @@ void CTBSPredictionDlg::tbs_test_report_case_result_create(CString cstrFileName)
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__,"测试报告主页生成完成！");
 }
 //写入单个脚本的测试详细数据
-void CTBSPredictionDlg::tbs_test_report_case_information_create(CString cstrTestReportName)
+void CTBSDlg::tbs_test_report_case_information_create(CString cstrTestReportName)
 {
 	//文件夹路径
 	cstrTestReportName = L"..\\testreport\\" + cstrTestReportName;
@@ -711,7 +718,7 @@ void CTBSPredictionDlg::tbs_test_report_case_information_create(CString cstrTest
 	strTestReport[9] = "实际结果";
 	strTestReport[10] = "Case耗时";
 
-	strProjectName		= TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName);
+	strProjectName		= TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
 	strSqlSelectDetail	= "select *from TestDetail where ProjectName='" + strProjectName + "' and CaseName!='Describe'";
 	m_DataBase.tbs_db_data_query(strSqlSelectDetail, &ppGetData, &iRow, &iCloum);
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iRow);
@@ -828,49 +835,31 @@ void CTBSPredictionDlg::tbs_test_report_case_information_create(CString cstrTest
 
 }
 
-void CTBSPredictionDlg::OnLogSave()
+void CTBSDlg::OnLogSave()
 {
 	CTBSLogSaveDlg m_LogSaveDlg;
 	m_LogSaveDlg.DoModal();
 }
 
-void CTBSPredictionDlg::OnTcnSelchangeTabControl(NMHDR *pNMHDR, LRESULT *pResult)
+void CTBSDlg::OnConnectIr()
 {
-	INT iTabNum				= m_TabControl->GetCurSel();
-	if (CTBSCommon::m_PresentThread[iTabNum].bLock)
-	{
-		CTBSCommon::m_PresentThread[iTabNum].m_ManualEvent.SetEvent();
-		CTBSCommon::m_PresentThread[iTabNum].bLock = false;
-	}
-	CTBSCommon::iTBSPresent = iTabNum;
-	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__,iTabNum);
-
-	for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
-	{
-		if (CTBSCommon::m_PresentThread[i].m_pMainDlg == NULL)
-			continue;
-		if (i == iTabNum)
-		{
-			CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(SW_SHOW);
-		}
-		else
-		{
-			CTBSCommon::m_PresentThread[i].m_pMainDlg->ShowWindow(SW_HIDE);
-		}
-	}
-
-	*pResult = 0;
-}
-
-void CTBSPredictionDlg::OnConnectIr()
-{
-	CTBSSelectIR m_IRDlg;
+	CTBSSelectIRDlg m_IRDlg;
 	m_IRDlg.DoModal();
 }
 
-void CTBSPredictionDlg::OnDisconIr()
+void CTBSDlg::OnDisconIr()
 {
-	CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrRedRat = L"";
+	if (CTBSCommon::m_PresentThread->cstrRedRat == L"")
+	{
+		MessageBox(L"未指定IR设备无需断开");
+		return;
+	}
+	WCHAR arrRedRat[MAX_PATH];
+	wstring cstrWrite;
+	GetPrivateProfileString(L"RedRat", L"Device", L"", arrRedRat, MAX_PATH, CONFIGFILE);
+	cstrWrite = regex_replace(arrRedRat, (wregex)(CTBSCommon::m_PresentThread->cstrRedRat+L","), L"");
+	WritePrivateProfileString(L"RedRat", L"Device", (CString)cstrWrite.c_str(), CONFIGFILE);
+	CTBSCommon::m_PresentThread->cstrRedRat = L"";
 }
 
 /*
@@ -881,7 +870,7 @@ cstrDirPath：文件路径，可以是文件夹的路径，也可以是文件的路径；
 pKeyName：关键字；
 bSubDirectory：是否查找子文件夹，TRUE表示需要。
 */
-VOID CTBSPredictionDlg::tbs_file_find(const CString cstrDirPath, const CString  cstrKey, bool bSubDirectory)
+VOID CTBSDlg::tbs_file_find(const CString cstrDirPath, const CString  cstrKey, bool bSubDirectory)
 {
 	assert(!cstrDirPath.IsEmpty());
 
@@ -917,7 +906,7 @@ VOID CTBSPredictionDlg::tbs_file_find(const CString cstrDirPath, const CString  
 	m_FileFind.Close();
 }
 
-void CTBSPredictionDlg::tbs_test_prase_scriptname(CHAR *pPath, CHAR *pName)
+void CTBSDlg::tbs_test_prase_scriptname(CHAR *pPath, CHAR *pName)
 {
 
 	string strPath(pPath);
@@ -927,7 +916,7 @@ void CTBSPredictionDlg::tbs_test_prase_scriptname(CHAR *pPath, CHAR *pName)
 	//2:module;
 	//3:scriptName;
 	CTBSCommon::tbs_com_string_split(strPath, '_', pKeyWord);
-	string strproject(TOSTRING(CTBSCommon::m_PresentThread[CTBSCommon::iTBSPresent].cstrProjectName));
+	string strproject(TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName));
 	string strValue = "'" + strproject + "','" + pKeyWord[2] + "'," + "NULL," + "'" + pName + "','" + pPath + "','" + pKeyWord[1] + "'";
 	string strSql = "Insert  into TestCase values (" + strValue + ")";
 
@@ -935,7 +924,7 @@ void CTBSPredictionDlg::tbs_test_prase_scriptname(CHAR *pPath, CHAR *pName)
 	m_DataBase.tbs_db_sql_exec(strSql);
 }
 
-BOOL CTBSPredictionDlg::PreTranslateMessage(MSG* pMsg)
+BOOL CTBSDlg::PreTranslateMessage(MSG* pMsg)
 {
 	if (pMsg->message == WM_KEYDOWN)
 	{
@@ -946,18 +935,18 @@ BOOL CTBSPredictionDlg::PreTranslateMessage(MSG* pMsg)
 }
 
 
-void CTBSPredictionDlg::OnTestFinish()
+void CTBSDlg::OnTestFinish()
 {
-	INT iIndex = CTBSCommon::iTBSPresent;
-	CTBSCommon::m_PresentThread[iIndex].m_ParseThread = NULL;
-	CTBSCommon::m_PresentThread[iIndex].m_TestThread = NULL;
+	CTBSCommon::m_PresentThread->m_ParseThread	= NULL;
+	CTBSCommon::m_PresentThread->m_TestThread	= NULL;
 	wregex m_Regex1(L"(.*)(执行中)");
 	wregex m_Regex2(L"(waiting...)");
 	CString cstrStatus;
+	
 	for (INT i = 0; i >= 0; i++)
 	{
 		cstrStatus = L"";
-		cstrStatus=CTBSCommon::m_PresentThread[iIndex].m_pMainDlg->m_TestList.GetItemText(i, 1);
+		cstrStatus=CTBSCommon::m_PresentThread->m_pMainDlg->m_TestList.GetItemText(i, 1);
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, cstrStatus);
 		if (cstrStatus == L"")
 		{
@@ -966,43 +955,71 @@ void CTBSPredictionDlg::OnTestFinish()
 		}
 		if (regex_match(cstrStatus.AllocSysString(),m_Regex1))
 		{
-			CTBSCommon::m_PresentThread[iIndex].m_pMainDlg->m_TestList.SetItemText(i, 1, L"测试强制结束");
+			CTBSCommon::m_PresentThread->m_pMainDlg->m_TestList.SetItemText(i, 1, L"测试强制结束");
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, cstrStatus);
 			break;
 		}
 		if (regex_match(cstrStatus.AllocSysString(), m_Regex2))
 		{
-			CTBSCommon::m_PresentThread[iIndex].m_pMainDlg->m_TestList.SetItemText(i, 1, L"测试强制结束");
+			CTBSCommon::m_PresentThread->m_pMainDlg->m_TestList.SetItemText(i, 1, L"测试强制结束");
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, cstrStatus);
 			break;
 		}
-
 	}
 }
 
-void CTBSPredictionDlg::OnIrValueIn()
+void CTBSDlg::OnIrValueIn()
 {
-	/*INT iResult = WinExec("..\\SignalDBUtil\\SignalDBUtil.exe", SW_SHOW);
-	if (31 > iResult)
-	{
-		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iResult);
-	}*/
 	PROCESS_INFORMATION m_pi;
 	STARTUPINFO si = { sizeof(si) };
 	CreateProcess(L"..\\SignalDBUtil\\SignalDBUtil.exe", NULL, NULL, NULL, 1, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &m_pi);
 	INT i=GetLastError();
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, i);
-
 }
 
-void CTBSPredictionDlg::OnCancel()
+void CTBSDlg::OnCancel()
 {
-	HWND hWnd = ::FindWindow(NULL, L"RedRat IR Signal Database Utility");
+	//检查键值录入进程是否关闭
+	/*HWND hWnd = ::FindWindow(NULL, L"RedRat IR Signal Database Utility");
 	if (hWnd != NULL)
 	{
 		::SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE| SWP_NOSIZE | SWP_SHOWWINDOW);
 		::ShowWindow(hWnd, SW_RESTORE);
 		return;
-	}
+	}*/
+	////删除配置文件内的IR设备数据
+	//if (CTBSCommon::m_PresentThread->cstrRedRat != L"")
+	//{
+	//	WCHAR arrRedRat[MAX_PATH];
+	//	wstring cstrWrite;
+	//	GetPrivateProfileString(L"RedRat", L"Device", L"", arrRedRat, MAX_PATH, CONFIGFILE);
+	//	cstrWrite = regex_replace(arrRedRat, (wregex)(CTBSCommon::m_PresentThread->cstrRedRat + L","), L"");
+	//	WritePrivateProfileString(L"RedRat", L"Device", (CString)cstrWrite.c_str(), CONFIGFILE);
+	//}
+
+	////清理本次测试的数据库内的数据
+	//CSingleLock m_SingleLock(CTBSDataBase::m_pMutex);
+	//
+	//m_SingleLock.Lock();
+	//INT		iResultExec		= 0;
+	//CHAR	*pError			= NULL;
+	//string	strProjectName	= TOSTRING(CTBSCommon::m_PresentThread->cstrProjectName);
+	//string	sqlTestReport	= "delete from TestReport where ProjectName='"+ strProjectName +"'";
+	//string	sqlTestDetail	= "delete from TestDetail where ProjectName='" + strProjectName + "'";
+	//CTBSDataBase m_DataBase(DATAPATH);
+	//iResultExec = sqlite3_exec(m_DataBase.m_pDataBase, sqlTestReport.c_str(),NULL,NULL,&pError);
+	//iResultExec = sqlite3_exec(m_DataBase.m_pDataBase, sqlTestDetail.c_str(), NULL, NULL, &pError);
+	//m_SingleLock.Unlock();
+
 	CDialogEx::OnCancel();
+}
+
+//测试死机操作
+void CTBSDlg::On32826()
+{
+	INT *p = NULL;
+	if (p[1] == 0)
+	{
+		MessageBox(L"哇哦，居然没死机！！！");
+	}
 }

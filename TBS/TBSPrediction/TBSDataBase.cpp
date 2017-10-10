@@ -2,17 +2,15 @@
 //
 
 #include "stdafx.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSDataBase.h"
 #include "sqlite3.h"
 #include "TBSLog.h"
 
 // CTBSDataBase
 
-CMutex *CTBSDataBase::pMetux = new CMutex;
-CTBSDataBase::CTBSDataBase()
-{
-}
+CMutex *CTBSDataBase::m_pMutex = new CMutex(FALSE, TBS_DATABASE_METUX);
+
 CTBSDataBase::CTBSDataBase(string strDBName)
 {
 	strDataPath = strDBName;
@@ -27,8 +25,9 @@ CTBSDataBase::~CTBSDataBase()
 // 数据库除查询操作以外的操作，全部由该函数完成，只需传入相应的sql语句即可。
 INT CTBSDataBase::tbs_db_sql_exec(string strExpression)
 {
-	CSingleLock m_Lock(pMetux);
+	CSingleLock m_Lock(m_pMutex);
 	m_Lock.Lock();
+	
 	INT iOpenResult = sqlite3_open(strDataPath.c_str(), &m_pDataBase);
 	
 	if (iOpenResult == SQLITE_OK)
@@ -55,7 +54,7 @@ INT CTBSDataBase::tbs_db_sql_exec(string strExpression)
 }
 INT CTBSDataBase::tbs_db_data_query(string strExpression, CHAR*** pData,INT *iRow,INT *iColum)
 {
-	CSingleLock m_Lock(pMetux);
+	CSingleLock m_Lock(m_pMutex);
 	m_Lock.Lock();
 	INT iOpenResult = sqlite3_open(strDataPath.c_str(), &m_pDataBase);
 	if (SQLITE_OK == iOpenResult)
@@ -97,9 +96,9 @@ INT CTBSDataBase::tbs_db_data_query(string strExpression, CHAR*** pData,INT *iRo
 }
 INT CTBSDataBase::tbs_db_init()
 {
-	CSingleLock m_Lock(pMetux);
-	INT iResult;
+	CSingleLock m_Lock(m_pMutex);
 	m_Lock.Lock();
+	INT iResult;
 	INT iOpenResult = sqlite3_open(strDataPath.c_str(), &m_pDataBase);
 	if (SQLITE_OK == iOpenResult)
 	{
@@ -108,9 +107,9 @@ INT CTBSDataBase::tbs_db_init()
 		sqlite3_exec(m_pDataBase, "Create table if not exists TestReport(ProjectName CHAR(20), ProductName CHAR(20), HardwareVersion CHAR(20), SoftwareVersion CHAR(20),SN CHAR(30),ChipID CHAR(20),Result CHAR(5), Reason CHAR(80),Success INT,Fail INT,TimeBegin DATETIME,TimeEnd DATETIME,Time CHAR(20),Tester CHAR(10),Log CHAR(40))", NULL, NULL, NULL);
 		sqlite3_exec(m_pDataBase, "Create table if not exists TestDetail(ProjectName CHAR(20), Module CHAR(20), CaseName CHAR(40), ScriptName CHAR(20),Describe CHAR(80), TimeBegin DATETIME,TimeEnd DATETIME,Result CHAR(5),Action CHAR(20),TimeOccur DATETIME,Expect CHAR(240),Actual CHAR(240),Time CHAR(20),ParseResult CHAR(10),ErrorLine INT,ErrorInfo CHAR(80),Name CHAR(80),CaseNumber INT)", NULL, NULL, NULL);
 
-		INT		iResultExec		= 0;
-		CHAR	*pError			= NULL;
-		string	sqlTestReport	= "delete from TestReport";
+		/*INT		iResultExec		= 0;
+		CHAR	*pError			= NULL;*/
+		/*string	sqlTestReport	= "delete from TestReport";
 		string	sqlTestDetail	= "delete from TestDetail";
 
 		iResultExec =sqlite3_exec(this->m_pDataBase, sqlTestReport.c_str(),NULL,NULL,&pError);
@@ -122,15 +121,15 @@ INT CTBSDataBase::tbs_db_init()
 		if (iResultExec != SQLITE_OK)
 		{
 			iResult = -1;
-		}
+		}*/
 
 	}
 	else
 	{
 		iResult = -2;
 	}
-	m_Lock.Unlock();
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iResult);
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, L"database create success");
+	m_Lock.Unlock();
 	return iResult;
 }

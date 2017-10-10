@@ -3,12 +3,12 @@
 
 #include "stdafx.h"
 #include "TBSGlobal.h"
-#include "TBSPrediction.h"
+#include "TBSDlg.h"
 #include "TBSProjectOpenDlg.h"
 #include "afxdialogex.h"
 #include "TBSCommon.h"
 #include "TBSMainThread.h"
-#include "TBSPredictionDlg.h"
+#include "TBSApp.h"
 #include "TBSMainDlg.h"
 #include <fstream>
 #include <string>
@@ -91,14 +91,16 @@ void CTBSProjectOpenDlg::OnClickProjectList(NMHDR *pNMHDR, LRESULT *pResult)
 
 void CTBSProjectOpenDlg::OnBnClickedOk()
 {
-	static INT iStartNum = 0;
-
+	if (CTBSCommon::m_PresentThread->cstrProjectName != L"")
+	{
+		AfxMessageBox(L"已有工程打开！");
+		return;
+	}
 	if (csItemString.IsEmpty())
 	{
 		AfxMessageBox(L"请选择需要打开的project！");
 		return;
 	}
-	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, iStartNum+1);
 	CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, csItemString);
 	if (tbs_check_project(csItemString))
 	{
@@ -106,41 +108,40 @@ void CTBSProjectOpenDlg::OnBnClickedOk()
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "Project打开失败： 打开重复的Project！");
 		return;
 	}
-	if(CTBSCommon::iTBSNum < 8)
+	CTBSCommon::m_PresentThread->cstrProjectName = csItemString;
+	//if(CTBSCommon::iTBSNum < 8)
 	{	
 		CString csProjectPath = PROJECTPATH + csItemString + L"\\" + csItemString + L".ini";
 		if (CTBSCommon::tbs_file_check(csProjectPath))
 		{
 			CRuntimeClass* prt = RUNTIME_CLASS(CTBSMainThread);
-			CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].m_MainThread = AfxBeginThread(prt, THREAD_PRIORITY_NORMAL, 0, 0, NULL);
-			if (CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].m_MainThread == NULL)
+			CTBSCommon::m_PresentThread->m_MainThread = AfxBeginThread(prt, THREAD_PRIORITY_NORMAL, 0, 0, NULL);
+			if (CTBSCommon::m_PresentThread->m_MainThread == NULL)
 			{
 				CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "Project打开失败： 线程创建失败！");
 				AfxMessageBox(L"工程打开失败！");
 				return;
 			}
-			iStartNum++;
-			CString cstrIrData;
+			CTBSCommon::m_PresentThread->m_TBSDialog->SetWindowText(csItemString + L"-TBS");
+			
+		/*	CString cstrIrData;
 			CTBSCommon::iTBSPresent = CTBSCommon::iTBSNum;
 			CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].iTabNum			= CTBSCommon::iTBSNum;
 			CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].cstrProjectName	= csItemString;
 			CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].iNum				= iStartNum;
-			CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].bOpen				= true;
+			CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].bOpen				= true;*/
 
 			//showwing the menu.
-			if (CTBSCommon::iTBSNum == 0)
-			{
-				INT arrMenuIDEnable[] = { IDM_ADD_SCRIPT ,IDM_UPDATE_SCRIPT ,IDM_DELETE_SCRIPT ,IDM_IR_IN ,IDM_CONNECT_STB ,IDM_OPEN_TEST_MODULE ,IDM_CLOSE_PROJECT,IDM_SELECT_RUN,IDM_TEST_DATA_IN, IDM_LOG_SAVE,IDM_CONNECT_IR,IDM_DISCON_IR };
-				CTBSPredictionDlg::tbs_menu_enable(arrMenuIDEnable, 12);
-			}
+			INT arrMenuIDEnable[] = { IDM_ADD_SCRIPT ,IDM_UPDATE_SCRIPT ,IDM_DELETE_SCRIPT ,IDM_IR_IN ,IDM_CONNECT_STB ,IDM_OPEN_TEST_MODULE ,IDM_CLOSE_PROJECT,IDM_SELECT_RUN,IDM_TEST_DATA_IN, IDM_LOG_SAVE,IDM_CONNECT_IR,IDM_DISCON_IR };
+			CTBSDlg::tbs_menu_enable(arrMenuIDEnable, 12);
 
+			CString cstrIrData;
 			GetPrivateProfileString(L"IRData", L"Path", L"", cstrIrData.GetBuffer(MAX_PATH), MAX_PATH, csProjectPath);
 			if (cstrIrData != L"")
 			{
-				CTBSCommon::m_PresentThread[CTBSCommon::iTBSNum].cstrIRFile = cstrIrData;
+				CTBSCommon::m_PresentThread->cstrIRFile = cstrIrData;
 				cstrIrData.ReleaseBuffer();
 			}
-			CTBSCommon::iTBSNum++;
 			CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, csItemString+L" 打开成功！");
 		}
 		else
@@ -152,12 +153,12 @@ void CTBSProjectOpenDlg::OnBnClickedOk()
 		}
 		CDialogEx::OnOK();
 	}
-	else
-	{
+	//else
+	/*{
 		CTBSLog::tbs_log_info(__FILE__, __LINE__, __FUNCTION__, "Project打开失败： Project数量达到上限！");
 		AfxMessageBox(L"Project打开已达上限");
 		CDialogEx::OnOK();
-	}
+	}*/
 }
 
 void CTBSProjectOpenDlg::OnBnClickedDeleteProject()
@@ -184,14 +185,20 @@ void CTBSProjectOpenDlg::OnBnClickedDeleteProject()
 	}
 }
 
+//返回0表示未打开，返回1表示已经打开 。
 BOOL CTBSProjectOpenDlg::tbs_check_project(const CString cstrProjectName)
 {
-	for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
+	/*for (INT i = 0; i < CTBSCommon::iTBSNum; i++)
 	{
 		if (cstrProjectName == CTBSCommon::m_PresentThread[i].cstrProjectName)
 		{
 			return 1;
 		}
+	}*/
+	HANDLE h_Handle=FindWindow(NULL, cstrProjectName + L"-TBS");
+	if (h_Handle != NULL)
+	{
+		return 1;//peoject opened.
 	}
-	return 0;
+	return 0;//project not opened.
 }
